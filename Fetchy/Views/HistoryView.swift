@@ -274,3 +274,7 @@ struct StatusIndicator: View {
         }
     }
 }
+
+#Preview {
+    HistoryView()
+}
