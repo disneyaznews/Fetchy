@@ -1,30 +1,60 @@
-//
-//  ShareViewController.swift
-//  FetchyShare
-//
-//  Created by Ueda Ritsu on 2026/01/23.
-//
-
 import UIKit
+import SwiftUI
 import Social
+import QuickLook
 
-class ShareViewController: SLComposeServiceViewController {
+class ShareViewController: UIViewController, QLPreviewControllerDataSource {
 
-    override func isContentValid() -> Bool {
-        // Do validation of contentText and/or NSExtensionContext attachments here
-        return true
+    private var downloadedURL: URL?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        // Setup SwiftUI
+        let shareView = ShareView(extensionContext: self.extensionContext)
+        let hostingController = UIHostingController(rootView: shareView)
+        addChild(hostingController)
+        view.addSubview(hostingController.view)
+        
+        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
+            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
+        
+        // Listen for QuickLook request
+        NotificationCenter.default.addObserver(self, selector: #selector(handleQuickLookRequest(_:)), name: NSNotification.Name("OpenQuickLook"), object: nil)
     }
-
-    override func didSelectPost() {
-        // This is called after the user selects Post. Do the upload of contentText and/or NSExtensionContext attachments.
     
-        // Inform the host that we're done, so it un-blocks its UI. Note: Alternatively you could call super's -didSelectPost, which will similarly complete the extension context.
-        self.extensionContext!.completeRequest(returningItems: [], completionHandler: nil)
+    @objc func handleQuickLookRequest(_ notification: Notification) {
+        if let url = notification.object as? URL {
+            self.downloadedURL = url
+            let qlVC = QLPreviewController()
+            qlVC.dataSource = self
+            self.present(qlVC, animated: true, completion: nil)
+        }
     }
-
-    override func configurationItems() -> [Any]! {
-        // To add configuration options via table cells at the bottom of the sheet, return an array of SLComposeSheetConfigurationItem here.
-        return []
+    
+    // MARK: - QLPreviewControllerDataSource
+    func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
+        return downloadedURL != nil ? 1 : 0
     }
-
+    
+    func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+        return downloadedURL! as QLPreviewItem
+    }
+    
+    // Clean up
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // Logic to complete extension request if finished?
+        // self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        // Cleanup temp files if needed, though they are in temp directory
+    }
 }
