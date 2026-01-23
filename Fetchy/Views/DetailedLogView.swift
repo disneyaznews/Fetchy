@@ -135,7 +135,7 @@ struct DetailedLogView: View {
                     Divider().background(Color.white.opacity(0.2))
                     
                     SelectableLogView(text: selectedLog ?? "Log details are unavailable for this entry.")
-                        .frame(minHeight: 400)
+                        .fixedSize(horizontal: false, vertical: true) // Force vertical growth
                         .padding(.bottom, 40)
                 }
                 .padding(.horizontal)
@@ -159,14 +159,15 @@ struct DetailedLogView: View {
         
         func makeUIView(context: Context) -> UITextView {
             let textView = UITextView()
-            textView.isEditable = False
-            textView.isSelectable = True
-            textView.isScrollEnabled = False // Let SwiftUI ScrollView handle it
+            textView.isEditable = false
+            textView.isSelectable = true
+            textView.isScrollEnabled = false // Let SwiftUI ScrollView handle it
             textView.backgroundColor = .clear
             textView.textColor = .white
             textView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
             textView.textContainerInset = .zero
             textView.textContainer.lineFragmentPadding = 0
+            textView.textContainer.lineBreakMode = .byWordWrapping // Ensure wrapping
             
             // Allow partial selection
             textView.dataDetectorTypes = []
