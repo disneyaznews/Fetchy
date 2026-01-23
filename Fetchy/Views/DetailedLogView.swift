@@ -134,11 +134,9 @@ struct DetailedLogView: View {
                     
                     Divider().background(Color.white.opacity(0.2))
                     
-                    Text(selectedLog ?? "Log details are unavailable for this entry.")
-                        .font(.system(size: 11, design: .monospaced))
-                        .textSelection(.enabled) // Allow user to copy logs
+                    SelectableLogView(text: selectedLog ?? "Log details are unavailable for this entry.")
+                        .frame(minHeight: 400)
                         .padding(.bottom, 40)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal)
             }
@@ -152,6 +150,31 @@ struct DetailedLogView: View {
                         .foregroundColor(DesignSystem.Colors.nothingRed)
                 }
             }
+        }
+    }
+    
+    // Selectable TextView using UIKit for partial selection support
+    struct SelectableLogView: UIViewRepresentable {
+        let text: String
+        
+        func makeUIView(context: Context) -> UITextView {
+            let textView = UITextView()
+            textView.isEditable = False
+            textView.isSelectable = True
+            textView.isScrollEnabled = False // Let SwiftUI ScrollView handle it
+            textView.backgroundColor = .clear
+            textView.textColor = .white
+            textView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+            textView.textContainerInset = .zero
+            textView.textContainer.lineFragmentPadding = 0
+            
+            // Allow partial selection
+            textView.dataDetectorTypes = []
+            return textView
+        }
+        
+        func updateUIView(_ uiView: UITextView, context: Context) {
+            uiView.text = text
         }
     }
     
