@@ -53,12 +53,20 @@
 			);
 			target = 4F64013F2F235404006DD610 /* FetchyShare */;
 		};
+		4F64018C2F2361A5006DD610 /* Exceptions for "Fetchy" folder in "Fetchy" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				FetchyShare/Info.plist,
+			);
+			target = 4F64010E2F234D24006DD610 /* Fetchy */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		4F6401112F234D24006DD610 /* Fetchy */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				4F64018C2F2361A5006DD610 /* Exceptions for "Fetchy" folder in "Fetchy" target */,
 				4F64015C2F23543C006DD610 /* Exceptions for "Fetchy" folder in "FetchyShare" target */,
 			);
 			path = Fetchy;
@@ -432,7 +440,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = KGJC56RFVX;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FetchyShare/Info.plist;
+				INFOPLIST_FILE = Fetchy/FetchyShare/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FetchyShare;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -462,7 +470,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = KGJC56RFVX;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FetchyShare/Info.plist;
+				INFOPLIST_FILE = Fetchy/FetchyShare/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FetchyShare;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;

@@ -1,25 +1,58 @@
 import SwiftUI
+import Combine
 
 class SettingsManager: ObservableObject {
     static let shared = SettingsManager()
     
-    // TODO: Replace with your actual App Group Identifier
     private let appGroupIdentifier = "group.com.nisesimadao.Fetchy"
-    
-    private var userDefaults: UserDefaults {
-        UserDefaults(suiteName: appGroupIdentifier) ?? .standard
+    private var store: UserDefaults? {
+        UserDefaults(suiteName: appGroupIdentifier)
     }
     
-    @AppStorage("vibrationEnabled") var vibrationEnabled: Bool = true
-    @AppStorage("vibrationStrength") var vibrationStrength: String = "light" // light, medium, heavy
-    @AppStorage("progressVisible") var progressVisible: Bool = false
-    @AppStorage("toastEnabled") var toastEnabled: Bool = true
-    @AppStorage("toastIntervals") var toastIntervals: String = "5,8" // comma separated minutes
-    @AppStorage("defaultResolution") var defaultResolution: String = "1080p"
-    @AppStorage("defaultQuality") var defaultQuality: String = "44.1k"
+    @Published var vibrationEnabled: Bool = true {
+        didSet { save("vibrationEnabled", value: vibrationEnabled) }
+    }
     
-    // Helper to get UserDefaults for non-SwiftUI contexts (like Extension code not in a View)
+    @Published var vibrationStrength: String = "light" {
+        didSet { save("vibrationStrength", value: vibrationStrength) }
+    }
+    
+    @Published var progressVisible: Bool = false {
+        didSet { save("progressVisible", value: progressVisible) }
+    }
+    
+    @Published var toastEnabled: Bool = true {
+        didSet { save("toastEnabled", value: toastEnabled) }
+    }
+    
+    @Published var toastIntervals: String = "5,8" {
+        didSet { save("toastIntervals", value: toastIntervals) }
+    }
+    
+    @Published var defaultResolution: String = "1080p" {
+        didSet { save("defaultResolution", value: defaultResolution) }
+    }
+    
+    @Published var defaultQuality: String = "44.1k" {
+        didSet { save("defaultQuality", value: defaultQuality) }
+    }
+    
+    private init() {
+        self.vibrationEnabled = store?.bool(forKey: "vibrationEnabled") ?? true
+        self.vibrationStrength = store?.string(forKey: "vibrationStrength") ?? "light"
+        self.progressVisible = store?.bool(forKey: "progressVisible") ?? false
+        self.toastEnabled = store?.bool(forKey: "toastEnabled") ?? true
+        self.toastIntervals = store?.string(forKey: "toastIntervals") ?? "5,8"
+        self.defaultResolution = store?.string(forKey: "defaultResolution") ?? "1080p"
+        self.defaultQuality = store?.string(forKey: "defaultQuality") ?? "44.1k"
+    }
+    
+    private func save(_ key: String, value: Any) {
+        store?.set(value, forKey: key)
+    }
+    
     func getValue<T>(forKey key: String) -> T? {
-        userDefaults.value(forKey: key) as? T
+        store?.value(forKey: key) as? T
     }
 }
+
