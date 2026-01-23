@@ -129,7 +129,7 @@ struct ShareView: View {
             if isShowingToast, let msg = toastMessage {
                 VStack {
                     Spacer()
-                    ToastView(message: msg)
+                    ToastView(message: msg, isWarning: false)
                         .padding(.bottom, 40)
                 }
             }

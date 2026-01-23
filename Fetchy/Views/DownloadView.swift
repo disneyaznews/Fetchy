@@ -9,12 +9,16 @@ struct DownloadView: View {
     @State private var statusMessage: String = "READY"
     @State private var showProgress = false
     @State private var selectedResolution: String = "1080p"
+    @State private var isAudioOnly: Bool = false
+    @State private var selectedFormat: String = "mp4"
     
     // QuickLook support
     @State private var previewURL: URL?
     @State private var showPreview = false
     
-    let resolutions = ["2160p", "1080p", "720p", "480p", "360p"]
+    let videoResolutions = ["2160p", "1080p", "720p", "480p"]
+    let videoFormats = ["mp4", "webm", "mkv"]
+    let audioFormats = ["mp3", "m4a", "wav"]
     
     var body: some View {
         NavigationView {
@@ -22,39 +26,49 @@ struct DownloadView: View {
                 Color(uiColor: .systemGroupedBackground)
                     .ignoresSafeArea()
                 
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     
                     // Input Section
                     VStack(alignment: .leading, spacing: 12) {
-                        DotMatrixText(text: "TARGET URL")
+                        HStack {
+                            DotMatrixText(text: "TARGET URL")
+                            Spacer()
+                            if !urlInput.isEmpty {
+                                Button(action: { urlInput = ""; isDownloading = false; progress = 0 }) {
+                                    Text("RESET")
+                                        .font(.nothingMeta)
+                                        .foregroundColor(DesignSystem.Colors.nothingRed)
+                                }
+                            }
+                        }
                         
                         TextField("Paste Link Here...", text: $urlInput)
                             .padding()
                             .liquidGlass()
                             .submitLabel(.go)
+                            .disabled(isDownloading)
                             .onSubmit {
                                 startDownload()
                             }
                         
-                        // Resolution Selection
-                        VStack(alignment: .leading, spacing: 8) {
-                            DotMatrixText(text: "QUALITY PREFERENCE")
-                            
-                            HStack {
-                                ForEach(resolutions.prefix(4), id: \.self) { res in
-                                    Button(action: { selectedResolution = res }) {
-                                        Text(res)
-                                            .font(.nothingMeta)
-                                            .padding(.vertical, 8)
-                                            .frame(maxWidth: .infinity)
-                                            .background(selectedResolution == res ? DesignSystem.Colors.nothingRed : Color.secondary.opacity(0.1))
-                                            .foregroundColor(selectedResolution == res ? .white : .primary)
-                                            .cornerRadius(8)
-                                    }
-                                }
+                        // Mode Toggle (Video/Audio)
+                        HStack(spacing: 12) {
+                            modeButton(title: "VIDEO", isActive: !isAudioOnly) {
+                                withAnimation { isAudioOnly = false; selectedFormat = "mp4" }
+                            }
+                            modeButton(title: "AUDIO", isActive: isAudioOnly) {
+                                withAnimation { isAudioOnly = true; selectedFormat = "mp3" }
                             }
                         }
-                        .padding(.top, 10)
+                        .padding(.top, 4)
+                        
+                        // Dynamic Pickers
+                        if isAudioOnly {
+                            pickerSection(title: "AUDIO FORMAT", items: audioFormats, selection: $selectedFormat)
+                        } else {
+                            pickerSection(title: "RESOLUTION", items: videoResolutions, selection: $selectedResolution)
+                            pickerSection(title: "CONTAINER", items: videoFormats, selection: $selectedFormat)
+                        }
                     }
                     .padding(.horizontal)
                     
@@ -71,41 +85,42 @@ struct DownloadView: View {
                                     Capsule()
                                         .fill(DesignSystem.Colors.nothingRed)
                                         .frame(width: geo.size.width * progress)
-                                        .animation(.spring, value: progress)
                                 }
                             }
                             .frame(height: 6)
                             
-                            Text("\(Int(progress * 100))%")
-                                .font(.nothingMeta)
+                            HStack {
+                                Text("\(Int(progress * 100))%")
+                                Spacer()
+                                Text(isAudioOnly ? "EXTRACTING..." : "DOWNLOADING...")
+                            }
+                            .font(.nothingMeta)
                         }
                         .padding()
                         .liquidGlass()
                         .padding(.horizontal)
-                    } else if isDownloading {
-                        Button(action: { showProgress = true }) {
-                            HStack {
-                                Text("SHOW PROGRESS")
-                                Image(systemName: "percent")
-                            }
-                            .font(.nothingMeta)
-                        }
-                        .buttonStyle(IndustrialButtonStyle())
-                        .padding(.horizontal)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
                     
                     Spacer()
                     
                     // Action Button
                     Button(action: startDownload) {
-                        Text(isDownloading ? "SEQUENCE IN PROGRESS" : "INITIATE SEQUENCE")
-                            .frame(maxWidth: .infinity)
+                        HStack {
+                            if isDownloading {
+                                ProgressView()
+                                    .tint(.white)
+                                    .padding(.trailing, 8)
+                            }
+                            Text(isDownloading ? "SEQUENCE ACTIVE" : "INITIATE DOWNLOAD")
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(IndustrialButtonStyle())
                     .disabled(urlInput.isEmpty || isDownloading)
                     .padding()
                 }
-                .padding(.top, 20)
+                .padding(.top, 10)
             }
             .navigationTitle("Download")
             .sheet(isPresented: $showPreview) {
@@ -116,35 +131,76 @@ struct DownloadView: View {
         }
     }
     
+    // UI Helpers
+    private func modeButton(title: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.nothingMeta)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(isActive ? DesignSystem.Colors.nothingRed : Color.secondary.opacity(0.1))
+                .foregroundColor(isActive ? .white : .primary)
+                .cornerRadius(12)
+        }
+        .disabled(isDownloading)
+    }
+    
+    private func pickerSection(title: String, items: [String], selection: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            DotMatrixText(text: title)
+            HStack(spacing: 8) {
+                ForEach(items, id: \.self) { item in
+                    Button(action: { selection.wrappedValue = item }) {
+                        Text(item.uppercased())
+                            .font(.nothingMeta)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity)
+                            .background(selection.wrappedValue == item ? Color.primary : Color.secondary.opacity(0.1))
+                            .foregroundColor(selection.wrappedValue == item ? Color(uiColor: .systemBackground) : .primary)
+                            .cornerRadius(8)
+                    }
+                    .disabled(isDownloading)
+                }
+            }
+        }
+        .padding(.top, 8)
+    }
+    
     private func startDownload() {
         guard !urlInput.isEmpty else { return }
         
-        // Haptic feedback
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         
-        isDownloading = true
-        statusMessage = "INITIALIZING..."
-        progress = 0.0
+        withAnimation {
+            isDownloading = true
+            statusMessage = "INITIALIZING..."
+            progress = 0.0
+        }
         
-        YTDLPManager.shared.download(url: urlInput, quality: selectedResolution, statusHandler: { prog, status in
-            DispatchQueue.main.async {
-                if prog >= 0 {
-                    self.progress = prog
+        YTDLPManager.shared.download(
+            url: urlInput,
+            quality: selectedResolution,
+            audioOnly: isAudioOnly,
+            format: selectedFormat,
+            statusHandler: { prog, status in
+                DispatchQueue.main.async {
+                    if prog >= 0 {
+                        self.progress = prog
+                    }
+                    self.statusMessage = status.uppercased()
                 }
-                self.statusMessage = status.uppercased()
             }
-        }) { result in
+        ) { result in
             DispatchQueue.main.async {
-                self.isDownloading = false
+                withAnimation { self.isDownloading = false }
+                
                 switch result {
                 case .success(let (fileURL, log)):
                     self.statusMessage = "COMPLETED"
                     self.progress = 1.0
                     
-                    // Success Haptic
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     
-                    // Save to database
                     let entry = VideoEntry(
                         title: fileURL.lastPathComponent,
                         url: self.urlInput,
@@ -154,11 +210,12 @@ struct DownloadView: View {
                     )
                     DatabaseManager.shared.insert(entry: entry, rawLog: log)
                     
-                    // Trigger Preview
                     self.previewURL = fileURL
-                    self.showPreview = true
+                    // Small delay to ensure UI state is stable before presenting sheet
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        self.showPreview = true
+                    }
                     
-                    self.urlInput = ""
                 case .failure(let error):
                     self.statusMessage = "ERROR: \(error.localizedDescription)"
                     UINotificationFeedbackGenerator().notificationOccurred(.error)

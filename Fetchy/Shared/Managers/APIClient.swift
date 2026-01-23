@@ -22,13 +22,18 @@ class APIClient: ObservableObject {
     }
     
     /// Start a download job
-    func startDownload(url: String, quality: String = "1080p") async throws -> String {
+    func startDownload(url: String, quality: String = "1080p", audioOnly: Bool = false, format: String = "mp4") async throws -> String {
         let endpoint = URL(string: "\(baseURL)/api/download")!
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let body: [String: Any] = ["url": url, "quality": quality]
+        let body: [String: Any] = [
+            "url": url, 
+            "quality": quality,
+            "audioOnly": audioOnly,
+            "format": format
+        ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         let (data, response) = try await session.data(for: request)

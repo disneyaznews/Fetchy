@@ -19,13 +19,15 @@ class YTDLPManager: ObservableObject {
     /// Download video via Railway API
     func download(url: String,
                   quality: String = "1080p",
+                  audioOnly: Bool = false,
+                  format: String = "mp4",
                   statusHandler: @escaping (Double, String) -> Void,
                   completion: @escaping (Result<(URL, String), Error>) -> Void) {
         
         Task {
             do {
                 // Start download job
-                let jobId = try await apiClient.startDownload(url: url, quality: quality)
+                let jobId = try await apiClient.startDownload(url: url, quality: quality, audioOnly: audioOnly, format: format)
                 print("[API] Job started: \(jobId)")
                 
                 // Poll for status
