@@ -1,6 +1,73 @@
 import Foundation
 import Combine
 
+// MARK: - Process Polyfill for iOS
+// 'Process' (NSTask) is not public on iOS, but exists in the runtime.
+// This allows compilation on iOS to support 'Designed for iPad' on Mac.
+#if os(iOS)
+class Process: NSObject {
+    private let task: AnyObject
+    
+    var executableURL: URL? {
+        didSet {
+            if let path = executableURL?.path {
+                task.perform(Selector(("setLaunchPath:")), with: path)
+            }
+        }
+    }
+    
+    var arguments: [String]? {
+        didSet {
+            task.perform(Selector(("setArguments:")), with: arguments)
+        }
+    }
+    
+    var standardOutput: Any? {
+        didSet {
+            task.perform(Selector(("setStandardOutput:")), with: standardOutput)
+        }
+    }
+    
+    var standardError: Any? {
+        didSet {
+            task.perform(Selector(("setStandardError:")), with: standardError)
+        }
+    }
+    
+    var terminationHandler: ((Process) -> Void)?
+    var terminationStatus: Int32 {
+        let status = task.perform(Selector(("terminationStatus")))
+        return Int32(UInt(bitPattern: Unmanaged.passUnretained(status!).toOpaque()))
+    }
+    
+    override init() {
+        let taskClass = NSClassFromString("NSTask") as! NSObject.Type
+        self.task = taskClass.init()
+        super.init()
+        
+        // Setup termination notification
+        NotificationCenter.default.addObserver(self, selector: #selector(taskDidTerminate(_:)), name: NSNotification.Name("NSTaskDidTerminateNotification"), object: task)
+    }
+    
+    func run() throws {
+        let selector = Selector(("launch"))
+        if task.responds(to: selector) {
+            task.perform(selector)
+        } else {
+            throw YTDLPError.osNotSupported
+        }
+    }
+    
+    func terminate() {
+        task.perform(Selector(("terminate")))
+    }
+    
+    @objc private func taskDidTerminate(_ notification: Notification) {
+        terminationHandler?(self)
+    }
+}
+#endif
+
 enum YTDLPError: Error {
     case binaryNotFound
     case processFailed(Int32)
@@ -16,7 +83,7 @@ class YTDLPManager: ObservableObject {
     private var outputPipe: Pipe?
     
     func download(url: String, 
-                  quality: String = "1080p", // Placeholder for format selection logic
+                  quality: String = "1080p", 
                   progressHandler: @escaping (Double) -> Void, 
                   completion: @escaping (Result<URL, Error>) -> Void) {
         
@@ -25,15 +92,12 @@ class YTDLPManager: ObservableObject {
             return
         }
         
-        // Setup Temporary Directory
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let outputPathTemplate = tempDir.appendingPathComponent("%(title)s.%(ext)s").path
         
         let process = Process()
         process.executableURL = URL(fileURLWithPath: binaryPath)
-        
-        // Basic arguments: Print JSON progress, Output template
         process.arguments = [
             "--newline",
             "--progress",
@@ -43,7 +107,7 @@ class YTDLPManager: ObservableObject {
         
         let pipe = Pipe()
         process.standardOutput = pipe
-        process.standardError = pipe // Capture error output too/or separate
+        process.standardError = pipe
         self.outputPipe = pipe
         self.currentProcess = process
         
@@ -52,17 +116,14 @@ class YTDLPManager: ObservableObject {
             let data = handle.availableData
             if data.isEmpty { return }
             if let str = String(data: data, encoding: .utf8) {
-                // Parse Progress
-                // Example: [download]  23.5% of 10.00MiB at 100.00KiB/s ETA 00:30
                 self.parseProgress(from: str, handler: progressHandler)
             }
         }
         
-        process.terminationHandler = { proc in
+        process.terminationHandler = { (proc: Process) in
             outHandle.readabilityHandler = nil
             
             if proc.terminationStatus == 0 {
-                // Find the downloaded file
                 do {
                     let files = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
                     if let videoFile = files.first {
@@ -95,8 +156,6 @@ class YTDLPManager: ObservableObject {
         let lines = output.components(separatedBy: "\n")
         for line in lines {
             if line.contains("[download]") && line.contains("%") {
-                // Rudimentary parsing
-                // [download]  12.3% ...
                 let components = line.components(separatedBy: CharacterSet.whitespaces)
                 for comp in components {
                     if comp.contains("%") {
@@ -112,3 +171,4 @@ class YTDLPManager: ObservableObject {
         }
     }
 }
+
