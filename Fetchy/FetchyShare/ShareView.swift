@@ -9,7 +9,7 @@ struct ShareView: View {
     @State private var videoTitle: String = "Detecting..."
     @State private var progress: Double = 0.0
     @State private var downloadedFileURL: URL?
-    @State private var showProgressOverride: Bool = false // User tapped to show
+    @State private var selectedResolution: String = "1080p"
     
     enum ShareState: Equatable {
         case initial
@@ -25,24 +25,62 @@ struct ShareView: View {
     @State private var toastMessage: String?
     @State private var isShowingToast = false
     
+    let resolutions = ["2160p", "1080p", "720p", "480p"]
     private let hapticGenerator = UIImpactFeedbackGenerator(style: .light)
     
     var body: some View {
         ZStack {
-            // Background - Liquid Glass
             Color.clear
                 .liquidGlass()
                 .ignoresSafeArea()
             
             VStack(spacing: 20) {
-                // Header / Initial Info
-                if case .readyForPreview = state {
-                    // Skip header when ready for preview
-                } else {
-                    VStack(spacing: 12) {
-                        Image(systemName: "arrow.down.circle.fill")
+                if state == .initial {
+                    VStack(spacing: 20) {
+                        Image(systemName: "link.circle.fill")
                             .font(.system(size: 40))
                             .foregroundStyle(DesignSystem.Colors.nothingRed)
+                        
+                        Text("LINK DETECTED")
+                            .font(.nothingHeader)
+                        
+                        // Resolution Selection
+                        VStack(alignment: .leading, spacing: 8) {
+                            DotMatrixText(text: "QUALITY PREFERENCE")
+                            
+                            HStack {
+                                ForEach(resolutions, id: \.self) { res in
+                                    Button(action: { selectedResolution = res }) {
+                                        Text(res)
+                                            .font(.nothingMeta)
+                                            .padding(.vertical, 8)
+                                            .frame(maxWidth: .infinity)
+                                            .background(selectedResolution == res ? DesignSystem.Colors.nothingRed : Color.secondary.opacity(0.1))
+                                            .foregroundColor(selectedResolution == res ? .white : .primary)
+                                            .cornerRadius(8)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Button(action: {
+                            if let url = foundURL {
+                                startDownload(url: url)
+                            }
+                        }) {
+                            Text("START DOWNLOAD")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(IndustrialButtonStyle())
+                        .disabled(foundURL == nil)
+                    }
+                    .padding()
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: state == .downloading ? "arrow.down.circle.fill" : "checkmark.circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(state == .downloading ? DesignSystem.Colors.nothingRed : .green)
+                            .symbolEffect(.pulse, isActive: state == .downloading)
                         
                         Text(videoTitle)
                             .font(.nothingHeader)
@@ -50,90 +88,62 @@ struct ShareView: View {
                             .lineLimit(2)
                         
                         DotMatrixText(text: stateText)
+                        
+                        if state == .downloading {
+                            VStack(spacing: 8) {
+                                GeometryReader { geo in
+                                    ZStack(alignment: .leading) {
+                                        Capsule()
+                                            .fill(Color.secondary.opacity(0.2))
+                                        
+                                        Capsule()
+                                            .fill(DesignSystem.Colors.nothingRed)
+                                            .frame(width: geo.size.width * progress)
+                                            .animation(.spring, value: progress)
+                                    }
+                                }
+                                .frame(height: 6)
+                                
+                                Text("\(Int(progress * 100))%")
+                                    .font(.nothingMeta)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.top, 10)
+                        }
                     }
                     .padding()
                 }
                 
-                // Progress Section (Hidden by default unless downloading & user requests, or logic enforces)
-                if state == .downloading || showProgressOverride {
-                    VStack {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(Color.secondary.opacity(0.2))
-                                
-                                Capsule()
-                                    .fill(DesignSystem.Colors.nothingRed)
-                                    .frame(width: geo.size.width * progress)
-                                    .animation(.spring, value: progress)
-                            }
-                        }
-                        .frame(height: 6)
-                        
-                        HStack {
-                            Text("\(Int(progress * 100))%")
-                            Spacer()
-                            if SettingsManager.shared.vibrationEnabled {
-                                Image(systemName: "iphone.radiowaves.left.and.right")
-                                    .font(.caption)
-                            }
-                        }
-                        .font(.nothingMeta)
-                        .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal)
-                    .transition(.opacity)
-                } 
-                else if state == .initial {
-                    // "Show Progress" Button
-                    Button(action: {
-                        withAnimation {
-                            showProgressOverride = true
-                        }
-                    }) {
-                        HStack {
-                            Text("SHOW PROGRESS")
-                            Image(systemName: "chevron.right")
-                        }
+                if case .readyForPreview = state, let fileURL = downloadedFileURL {
+                    Button(action: { openQuickLook(url: fileURL) }) {
+                        Label("RE-OPEN PREVIEW", systemImage: "eye")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(IndustrialButtonStyle())
-                }
-                
-                // QuickLook / Open Section
-                if case .readyForPreview = state, let fileURL = downloadedFileURL {
-                    VStack(spacing: 16) {
-                        Text("READY FOR PREVIEW")
-                            .font(.nothingHeader)
-                        
-                        Button(action: {
-                            openQuickLook(url: fileURL)
-                        }) {
-                            Label("Open Quick Look", systemImage: "eye")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(IndustrialButtonStyle())
-                    }
-                }
-                
-                // Error State
-                if case .error(let msg) = state {
-                     ToastView(message: msg, isWarning: true)
+                    .padding(.horizontal)
                 }
             }
             .padding()
+            
+            // Toast layer
+            if isShowingToast, let msg = toastMessage {
+                VStack {
+                    Spacer()
+                    ToastView(message: msg)
+                        .padding(.bottom, 40)
+                }
+            }
         }
         .onAppear {
             extractURL()
         }
     }
     
-    // MARK: - Logic
-    
     private var stateText: String {
         switch state {
-        case .initial: return "ANALYZING INPUT..."
+        case .initial: return "READY"
         case .downloading: return "DOWNLOADING..."
-        case .readyForPreview: return "READY"
+        case .readyForPreview: return "COMPLETED"
         case .error: return "FAILED"
         case .success: return "COMPLETED"
         }
@@ -150,24 +160,11 @@ struct ShareView: View {
                         if let url = item as? URL {
                             DispatchQueue.main.async {
                                 self.foundURL = url
-                                self.videoTitle = "URL Detected" // Better title fetching usually requires initial scrape
-                                self.startDownload(url: url)
+                                self.videoTitle = url.host ?? "External Link"
                             }
                         }
                     }
                     return
-                }
-                // Handle plain text that might be a URL
-                if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-                     provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { (item, error) in
-                        if let text = item as? String, let url = URL(string: text) { // Naive check
-                             DispatchQueue.main.async {
-                                self.foundURL = url
-                                self.videoTitle = "Text Link"
-                                self.startDownload(url: url)
-                            }
-                        }
-                     }
                 }
             }
         }
@@ -177,19 +174,25 @@ struct ShareView: View {
         state = .downloading
         startTime = Date()
         
-        YTDLPManager.shared.download(url: url.absoluteString, statusHandler: { prog, status in
-            if prog >= 0 {
-                self.progress = prog
-                checkHaptics(prog)
+        YTDLPManager.shared.download(url: url.absoluteString, quality: selectedResolution, statusHandler: { prog, status in
+            DispatchQueue.main.async {
+                if prog >= 0 {
+                    self.progress = prog
+                    checkHaptics(prog)
+                }
+                self.statusMessage = status
+                checkTimeWarnings()
             }
-            self.statusMessage = status
-            checkTimeWarnings()
         }) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let (fileURL, log)):
                     self.downloadedFileURL = fileURL
                     self.state = .readyForPreview
+                    self.progress = 1.0
+                    
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    
                     let entry = VideoEntry(
                         title: fileURL.lastPathComponent,
                         url: url.absoluteString,
@@ -199,9 +202,13 @@ struct ShareView: View {
                     )
                     DatabaseManager.shared.insert(entry: entry, rawLog: log)
                     
+                    // Auto-open QuickLook
+                    openQuickLook(url: fileURL)
+                    
                 case .failure(let error):
                     self.showToast(error.localizedDescription)
                     self.state = .error(error.localizedDescription)
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
                 }
             }
         }
@@ -209,7 +216,7 @@ struct ShareView: View {
     
     private func checkHaptics(_ prog: Double) {
         if SettingsManager.shared.vibrationEnabled {
-            if prog >= lastHapticProgress + 0.02 {
+            if prog >= lastHapticProgress + 0.05 {
                 hapticGenerator.impactOccurred()
                 lastHapticProgress = prog
             }
@@ -221,30 +228,21 @@ struct ShareView: View {
         guard let start = startTime else { return }
         let elapsed = Date().timeIntervalSince(start)
         
-        if elapsed > 480 { // 8 minutes
-            showToast("ダウンロード中です。OSにより中断される可能性があります。")
-        } else if elapsed > 300 { // 5 minutes
-            showToast("長時間経過するとOSにより中断される可能性があります。")
+        if elapsed > 480 {
+            showToast("OSにより中断される可能性があります。")
         }
     }
     
     private func showToast(_ message: String) {
-        guard toastMessage != message else { return }
         toastMessage = message
         withAnimation { isShowingToast = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             withAnimation { isShowingToast = false }
         }
     }
-
     
     private func openQuickLook(url: URL) {
-        // In a real generic SwiftUI view, we might need a wrapper or bridge to QLPreviewController
-        // relying on parent view controller integration. 
-        // For this streamlined impl, we'll assume the parent `ShareViewController` handles the presentation
-        // or we use a `quickLookPreview` modifier if available in newer iOS, 
-        // OR we simply signal the parent.
-        // For simplicity here:
         NotificationCenter.default.post(name: NSNotification.Name("OpenQuickLook"), object: url)
     }
 }
+

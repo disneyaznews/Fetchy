@@ -77,7 +77,7 @@ class YTDLPManager: ObservableObject {
                     
                 default:
                     // Continue polling
-                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
                     attempts += 1
                 }
                 
