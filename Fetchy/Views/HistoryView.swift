@@ -5,76 +5,76 @@ struct HistoryView: View {
     @State private var offset: Int = 0
     private let limit: Int = 20
     
+    @ObservedObject var downloadManager = DownloadManager.shared
     @State private var showingDeletePicker = false
     @State private var deleteBeforeDate = Date()
     @State private var titleTapCount = 0
     @State private var lastTapTime = Date()
     
     var body: some View {
-        NavigationView {
-                List {
-                    if entries.isEmpty {
-                        Section {
-                            VStack(spacing: 20) {
-                                Image(systemName: "tray.fill")
-                                    .font(.system(size: 44))
-                                    .foregroundStyle(.quaternary)
-                                DotMatrixText(text: "NO RECORDS FOUND", usesUppercase: true)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 100)
-                        }
-                        .listRowBackground(Color.clear)
-                    } else {
-                        Section(header: DotMatrixText(text: "RECENT SEQUENCES")) {
-                            ForEach(entries) { entry in
-                                HistoryRow(entry: entry)
-                                    .swipeActions(edge: .trailing) {
-                                        Button(role: .destructive) {
-                                            deleteEntry(entry)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    }
-                            }
-                            
-                            if entries.count >= limit && entries.count % limit == 0 {
-                                Button(action: loadMore) {
-                                    Text("LOAD MORE")
-                                        .font(.nothingMeta)
-                                        .foregroundColor(DesignSystem.Colors.nothingRed)
-                                        .frame(maxWidth: .infinity)
-                                }
-                            }
-                        }
-                    }
-                }
-            .navigationTitle("History")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingDeletePicker = true }) {
-                        Image(systemName: "trash")
-                            .foregroundColor(DesignSystem.Colors.nothingRed)
-                    }
-                }
-                ToolbarItem(placement: .principal) {
-                    Text("History")
-                        .font(.system(size: 17, weight: .semibold))
-                        .onTapGesture {
-                            handleTitleTap()
-                        }
-                }
-            }
-            .overlay {
-                if showingDeletePicker {
-                    bulkDeleteOverlay
-                }
-            }
-            .onAppear {
+            List {
                 if entries.isEmpty {
-                    loadEntries()
+                    Section {
+                        VStack(spacing: 20) {
+                            Image(systemName: "tray.fill")
+                                .font(.system(size: 44))
+                                .foregroundStyle(.quaternary)
+                            DotMatrixText(text: "NO RECORDS FOUND", usesUppercase: true)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 100)
+                    }
+                    .listRowBackground(Color.clear)
+                } else {
+                    Section(header: DotMatrixText(text: "RECENT SEQUENCES")) {
+                        ForEach(entries) { entry in
+                            let task = downloadManager.tasks.first(where: { $0.url == entry.url && $0.status != "COMPLETED" })
+                            HistoryRow(entry: entry, task: task)
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        deleteEntry(entry)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                        }
+                        
+                        if entries.count >= limit && entries.count % limit == 0 {
+                            Button(action: loadMore) {
+                                Text("LOAD MORE")
+                                    .font(.nothingMeta)
+                                    .foregroundColor(DesignSystem.Colors.nothingRed)
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
                 }
+            }
+        .navigationTitle("History")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showingDeletePicker = true }) {
+                    Image(systemName: "trash")
+                        .foregroundColor(DesignSystem.Colors.nothingRed)
+                }
+            }
+            ToolbarItem(placement: .principal) {
+                Text("History")
+                    .font(.system(size: 17, weight: .semibold))
+                    .onTapGesture {
+                        handleTitleTap()
+                    }
+            }
+        }
+        .overlay {
+            if showingDeletePicker {
+                bulkDeleteOverlay
+            }
+        }
+        .onAppear {
+            if entries.isEmpty {
+                loadEntries()
             }
         }
     }
@@ -172,7 +172,8 @@ struct HistoryView: View {
 
 struct HistoryRow: View {
     let entry: VideoEntry
-    
+    @ObservedObject var task: DownloadTask?
+
     var body: some View {
         NavigationLink(destination: DetailedLogView(targetEntryID: entry.id)) {
             HStack(spacing: 16) {
@@ -192,7 +193,7 @@ struct HistoryRow: View {
                 Spacer()
                 
                 VStack(alignment: .trailing, spacing: 4) {
-                    StatusIndicator(status: entry.status)
+                    StatusIndicator(status: entry.status, task: task)
                     Text(formatDate(entry.date))
                         .font(.nothingMeta)
                         .foregroundStyle(.secondary)
@@ -213,21 +214,27 @@ struct HistoryRow: View {
 
 struct StatusIndicator: View {
     let status: VideoEntry.DownloadStatus
+    @ObservedObject var task: DownloadTask?
     
     var body: some View {
-        switch status {
-        case .completed:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(DesignSystem.Colors.nothingRed)
-        case .failed:
-            Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(.secondary)
-        case .downloading:
-            ProgressView()
+        if let task = task {
+            ProgressView(value: task.progress)
                 .scaleEffect(0.8)
-        case .pending:
-            Image(systemName: "clock")
-                .foregroundStyle(.secondary)
+        } else {
+            switch status {
+            case .completed:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(DesignSystem.Colors.nothingRed)
+            case .failed:
+                Image(systemName: "exclamationmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            case .downloading:
+                ProgressView()
+                    .scaleEffect(0.8)
+            case .pending:
+                Image(systemName: "clock")
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

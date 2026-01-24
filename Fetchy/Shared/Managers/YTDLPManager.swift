@@ -8,13 +8,11 @@ enum YTDLPError: Error {
     case unknown
 }
 
-class YTDLPManager: ObservableObject {
-    static let shared = YTDLPManager()
+class YTDLPManager {
+    private var pollingTask: Task<Void, Error>?
+    private let apiClient = APIClient()
     
-    private var pollingTask: Task<Void, Never>?
-    private let apiClient = APIClient.shared
-    
-    private init() {}
+    public init() {}
     
     /// Download video via Railway API
     func download(url: String,
@@ -25,7 +23,7 @@ class YTDLPManager: ObservableObject {
                   statusHandler: @escaping (Double, String) -> Void,
                   completion: @escaping (Result<URL, Error>, String?) -> Void) {
         
-        Task {
+        pollingTask = Task {
             do {
                 // Start download job
                 let jobId = try await apiClient.startDownload(url: url, quality: quality, audioOnly: audioOnly, format: format, bitrate: bitrate)
@@ -93,6 +91,11 @@ class YTDLPManager: ObservableObject {
                 }
                 
             } catch {
+                if error is CancellationError {
+                    print("[YTDLP] Task cancelled.")
+                    completion(.failure(error), nil)
+                    return
+                }
                 print("[API] Polling error: \(error)")
                 let log = try? await apiClient.getLog(jobId: jobId)
                 completion(.failure(error), log)
@@ -106,6 +109,5 @@ class YTDLPManager: ObservableObject {
     
     func cancel() {
         pollingTask?.cancel()
-        pollingTask = nil
     }
 }

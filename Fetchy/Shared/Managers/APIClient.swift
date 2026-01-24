@@ -2,9 +2,7 @@ import Foundation
 import Combine
 
 /// API client for communicating with Railway backend
-class APIClient: ObservableObject {
-    static let shared = APIClient()
-    
+class APIClient {
     // IMPORTANT: Replace with your Railway public domain
     // 1. Go to Railway Dashboard → Settings → Networking
     // 2. Click "Generate Domain" under Public Networking
@@ -14,7 +12,7 @@ class APIClient: ObservableObject {
     
     private let session: URLSession
     
-    private init() {
+    public init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 300

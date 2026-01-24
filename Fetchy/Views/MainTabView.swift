@@ -6,12 +6,14 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             // Tab 0: History
-            HistoryView()
-                .tag(0)
-                .tabItem {
-                    Image(systemName: "clock")
-                    Text("History")
-                }
+            NavigationView {
+                HistoryView()
+            }
+            .tag(0)
+            .tabItem {
+                Image(systemName: "clock")
+                Text("History")
+            }
             
             // Tab 1: Download
             DownloadView()
@@ -20,14 +22,26 @@ struct MainTabView: View {
                     Image(systemName: "arrow.down.circle")
                     Text("Download")
                 }
+                
+            // Tab 2: Downloads
+            NavigationView {
+                DownloadsView()
+            }
+            .tag(2)
+            .tabItem {
+                Image(systemName: "arrow.down.app")
+                Text("Downloads")
+            }
             
-            // Tab 2: Settings
-            SettingsView()
-                .tag(2)
-                .tabItem {
-                    Image(systemName: "gearshape")
-                    Text("Settings")
-                }
+            // Tab 3: Settings
+            NavigationView {
+                SettingsView()
+            }
+            .tag(3)
+            .tabItem {
+                Image(systemName: "gearshape")
+                Text("Settings")
+            }
         }
         .accentColor(DesignSystem.Colors.nothingRed)
     }
