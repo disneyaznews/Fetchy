@@ -59,10 +59,18 @@ class YTDLPManager: ObservableObject {
                 
                 switch status.status {
                 case "completed":
-                    // Download file
-                    let tempDir = FileManager.default.temporaryDirectory
+                    // Download file to App Group shared container
+                    let appGroupIdentifier = "group.com.nisesimadao.Fetchy"
+                    guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else {
+                        completion(.failure(YTDLPError.apiError("Could not access App Group")), nil)
+                        return
+                    }
+                    
+                    let downloadsDir = containerURL.appendingPathComponent("downloads", isDirectory: true)
+                    try? FileManager.default.createDirectory(at: downloadsDir, withIntermediateDirectories: true)
+                    
                     let fileName = status.filename ?? status.title?.appending(".mp4") ?? "video.mp4"
-                    let destination = tempDir.appendingPathComponent(fileName)
+                    let destination = downloadsDir.appendingPathComponent(fileName)
                     
                     if FileManager.default.fileExists(atPath: destination.path) {
                         try? FileManager.default.removeItem(at: destination)

@@ -17,14 +17,14 @@ struct DetailedLogView: View {
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color(.systemGroupedBackground).ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Table Header
                 HStack {
                     Text("DATE")
                         .frame(width: 80, alignment: .leading)
-                    Text("ID/TITLE")
+                    Text("INFO / TITLE")
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Text("STATUS")
                         .frame(width: 80, alignment: .trailing)
@@ -33,7 +33,7 @@ struct DetailedLogView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .background(Color.white.opacity(0.05))
+                .background(Color(.secondarySystemGroupedBackground))
                 
                 ScrollView {
                     VStack(spacing: 0) {
@@ -77,7 +77,6 @@ struct DetailedLogView: View {
                                 .buttonStyle(.plain)
                                 
                                 Divider()
-                                    .background(Color.white.opacity(0.1))
                             }
                         }
                         
@@ -87,19 +86,19 @@ struct DetailedLogView: View {
                                     .font(.nothingMeta)
                                     .padding()
                                     .frame(maxWidth: .infinity)
-                                    .background(DesignSystem.Colors.nothingRed.opacity(0.1))
+                                    .background(DesignSystem.Colors.nothingRed.opacity(0.05))
                                     .cornerRadius(12)
                             }
                             .padding()
                         }
                         
-                        // Bottom spacer for floating tab bar
+                        // Bottom spacer
                         Color.clear.frame(height: 100)
                     }
                 }
             }
         }
-        .navigationTitle("SEQUENCE LOGS")
+        .navigationTitle("Sequence Logs")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingLogViewer) {
             logViewerSheet
@@ -132,7 +131,7 @@ struct DetailedLogView: View {
                     Text(selectedTitle)
                         .font(.nothingHeader)
                     
-                    Divider().background(Color.white.opacity(0.2))
+                    Divider()
                 }
                 .padding(.horizontal)
                 .padding(.top)
@@ -142,8 +141,8 @@ struct DetailedLogView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.bottom, 20)
             }
-            .background(Color.black.ignoresSafeArea())
-            .navigationTitle("RAW OUTPUT")
+            .background(Color(.systemBackground).ignoresSafeArea())
+            .navigationTitle("Raw Output")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -158,21 +157,21 @@ struct DetailedLogView: View {
     // Selectable TextView using UIKit for partial selection and wrapping support
     struct SelectableLogView: UIViewRepresentable {
         let text: String
+        @Environment(\.colorScheme) var colorScheme
         
         func makeUIView(context: Context) -> UITextView {
             let textView = UITextView()
             textView.isEditable = false
             textView.isSelectable = true
-            textView.isScrollEnabled = true // Enable internal scrolling
+            textView.isScrollEnabled = true 
             textView.backgroundColor = .clear
-            textView.textColor = .white
+            textView.textColor = colorScheme == .dark ? .white : .black
             textView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
             textView.textContainerInset = UIEdgeInsets(top: 10, left: 16, bottom: 20, right: 16)
             textView.textContainer.lineFragmentPadding = 0
             textView.textContainer.lineBreakMode = .byWordWrapping
             textView.textContainer.widthTracksTextView = true
             
-            // Ensure it doesn't try to grow wider than allowed
             textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             
             return textView
@@ -180,8 +179,7 @@ struct DetailedLogView: View {
         
         func updateUIView(_ uiView: UITextView, context: Context) {
             uiView.text = text
-            // Maintain styling
-            uiView.textColor = .white
+            uiView.textColor = colorScheme == .dark ? .white : .black
             uiView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
         }
     }

@@ -27,6 +27,7 @@ struct ShareView: View {
     @State private var startTime: Date?
     @State private var toastMessage: String?
     @State private var isShowingToast = false
+    @State private var showProgressOverride = false
     
     let videoResolutions = ["2160p", "1080p", "720p", "480p"]
     let videoFormats = ["mp4", "webm", "mkv"]
@@ -37,92 +38,17 @@ struct ShareView: View {
     
     var body: some View {
         ZStack {
-            Color.clear
-                .liquidGlass()
+            Color(.systemBackground) // Support Light/Dark
                 .ignoresSafeArea()
+                .onTapGesture {
+                    // Hide pickers or keyboard if any (though no keyboard in Extension usually)
+                }
             
             VStack(spacing: 20) {
                 if state == .initial {
-                    VStack(spacing: 16) {
-                        Image(systemName: "link.circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(DesignSystem.Colors.nothingRed)
-                        
-                        Text(videoTitle)
-                            .font(.nothingHeader)
-                            .lineLimit(1)
-                        
-                        // Mode Toggle
-                        HStack(spacing: 12) {
-                            selectionButton(title: "VIDEO", isActive: !isAudioOnly) {
-                                withAnimation { isAudioOnly = false; selectedFormat = "mp4" }
-                            }
-                            selectionButton(title: "AUDIO", isActive: isAudioOnly) {
-                                withAnimation { isAudioOnly = true; selectedFormat = "mp3" }
-                            }
-                        }
-                        
-                        // Pickers
-                        VStack(spacing: 10) {
-                            if isAudioOnly {
-                                miniPicker(title: "FORMAT", items: audioFormats, selection: $selectedFormat)
-                                miniPicker(title: "BITRATE", items: audioBitrates, selection: $selectedBitrate)
-                            } else {
-                                miniPicker(title: "QUALITY", items: videoResolutions, selection: $selectedResolution)
-                                miniPicker(title: "CONTAINER", items: videoFormats, selection: $selectedFormat)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                        
-                        Button(action: {
-                            if let url = foundURL {
-                                startDownload(url: url)
-                            }
-                        }) {
-                            Text("START DOWNLOAD")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(IndustrialButtonStyle())
-                        .disabled(foundURL == nil)
-                    }
-                    .padding()
+                    initialStateView
                 } else {
-                    VStack(spacing: 12) {
-                        Image(systemName: state == .downloading ? "arrow.down.circle.fill" : "checkmark.circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(state == .downloading ? DesignSystem.Colors.nothingRed : .green)
-                            .symbolEffect(.pulse, isActive: state == .downloading)
-                        
-                        Text(videoTitle)
-                            .font(.nothingHeader)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                        
-                        DotMatrixText(text: stateText)
-                        
-                        if state == .downloading {
-                            VStack(spacing: 8) {
-                                GeometryReader { geo in
-                                    ZStack(alignment: .leading) {
-                                        Capsule()
-                                            .fill(Color.secondary.opacity(0.2))
-                                        
-                                        Capsule()
-                                            .fill(DesignSystem.Colors.nothingRed)
-                                            .frame(width: geo.size.width * progress)
-                                            .animation(.spring, value: progress)
-                                    }
-                                }
-                                .frame(height: 6)
-                                
-                                Text("\(Int(progress * 100))%")
-                                    .font(.nothingMeta)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.top, 10)
-                        }
-                    }
-                    .padding()
+                    activeDownloadView
                 }
                 
                 if case .readyForPreview = state, let fileURL = downloadedFileURL {
@@ -140,15 +66,295 @@ struct ShareView: View {
             if isShowingToast, let msg = toastMessage {
                 VStack {
                     Spacer()
-                    ToastView(message: msg, isWarning: false)
-                        .padding(.bottom, 40)
+                    ToastView(message: msg, isWarning: true)
+                        .padding(.bottom, 60)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
         }
         .onAppear {
             extractURL()
+            SettingsManager.shared.hapticFrequency = SettingsManager.shared.hapticFrequency // Sync
         }
     }
+    
+    private var initialStateView: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "link.circle.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(DesignSystem.Colors.nothingRed)
+            
+            VStack(spacing: 4) {
+                Text(videoTitle)
+                    .font(.nothingHeader)
+                    .lineLimit(1)
+                
+                DotMatrixText(text: foundURL?.host ?? "READY TO INITIATE")
+            }
+            
+            VStack(spacing: 16) {
+                // Mode Toggle
+                HStack(spacing: 12) {
+                    selectionButton(title: "VIDEO", isActive: !isAudioOnly) {
+                        withAnimation { isAudioOnly = false; selectedFormat = "mp4" }
+                    }
+                    selectionButton(title: "AUDIO", isActive: isAudioOnly) {
+                        withAnimation { isAudioOnly = true; selectedFormat = "mp3" }
+                    }
+                }
+                
+                // Pickers
+                VStack(spacing: 12) {
+                    if isAudioOnly {
+                        miniPicker(title: "FORMAT", items: audioFormats, selection: $selectedFormat)
+                        miniPicker(title: "BITRATE", items: audioBitrates, selection: $selectedBitrate)
+                    } else {
+                        miniPicker(title: "QUALITY", items: videoResolutions, selection: $selectedResolution)
+                        miniPicker(title: "CONTAINER", items: videoFormats, selection: $selectedFormat)
+                    }
+                }
+            }
+            .padding()
+            .liquidGlass(cornerRadius: 20)
+            
+            Button(action: {
+                if let url = foundURL {
+                    startDownload(url: url)
+                }
+            }) {
+                Text("INITIATE DOWNLOAD")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(IndustrialButtonStyle())
+            .disabled(foundURL == nil)
+        }
+    }
+    
+    private var activeDownloadView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: state == .downloading ? "arrow.down.circle.fill" : "checkmark.circle.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(state == .downloading ? DesignSystem.Colors.nothingRed : .green)
+                .symbolEffect(.bounce, value: progress)
+            
+            VStack(spacing: 6) {
+                Text(videoTitle)
+                    .font(.nothingHeader)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                
+                DotMatrixText(text: stateText)
+            }
+            
+            if state == .downloading {
+                VStack(spacing: 16) {
+                    // Revealable Progress
+                    if SettingsManager.shared.progressVisible || showProgressOverride {
+                        VStack(spacing: 8) {
+                            ProgressView(value: progress)
+                                .tint(DesignSystem.Colors.nothingRed)
+                                .scaleEffect(x: 1, y: 1.5, anchor: .center)
+                            
+                            Text("\(Int(progress * 100))%")
+                                .font(.nothingMeta)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Button(action: { withAnimation { showProgressOverride = true } }) {
+                            Text("TAP TO REVEAL PROGRESS")
+                                .font(.nothingMeta)
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, 8)
+                                .frame(maxWidth: .infinity)
+                                .background(Color.primary.opacity(0.05))
+                                .cornerRadius(8)
+                        }
+                    }
+                }
+                .transition(.opacity)
+            }
+        }
+        .padding()
+        .liquidGlass(cornerRadius: 24)
+    }
+    
+    // UI Helpers
+    private func selectionButton(title: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.nothingMeta)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(isActive ? DesignSystem.Colors.nothingRed : Color.secondary.opacity(0.1))
+                .foregroundColor(isActive ? .white : .primary)
+                .cornerRadius(12)
+        }
+    }
+    
+    private func miniPicker(title: String, items: [String], selection: Binding<String>) -> some View {
+        HStack {
+            Text(title)
+                .font(.nothingMeta)
+                .foregroundStyle(.secondary)
+                .frame(width: 70, alignment: .leading)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(items, id: \.self) { item in
+                        Button(action: { selection.wrappedValue = item }) {
+                            Text(item.uppercased())
+                                .font(.system(size: 10, weight: .bold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(selection.wrappedValue == item ? Color.primary : Color.secondary.opacity(0.1))
+                                .foregroundColor(selection.wrappedValue == item ? Color(uiColor: .systemBackground) : .primary)
+                                .cornerRadius(6)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private var stateText: String {
+        switch state {
+        case .initial: return "READY"
+        case .downloading: return "SEQUENCE ACTIVE"
+        case .readyForPreview: return "SIGNAL STABLE"
+        case .error: return "SYSTEM HALTED"
+        case .success: return "COMPLETED"
+        }
+    }
+    
+    private func extractURL() {
+        guard let items = extensionContext?.inputItems as? [NSExtensionItem] else { return }
+        
+        for item in items {
+            guard let attachments = item.attachments else { continue }
+            for provider in attachments {
+                if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+                    provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { (item, error) in
+                        if let url = item as? URL {
+                            DispatchQueue.main.async {
+                                self.foundURL = url
+                                self.videoTitle = "EXTRACTING METADATA..."
+                                self.videoTitle = url.host ?? "External Link"
+                            }
+                        }
+                    }
+                    return
+                } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
+                    provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { (item, error) in
+                        if let text = item as? String, let url = URL(string: text) {
+                            DispatchQueue.main.async {
+                                self.foundURL = url
+                                self.videoTitle = url.host ?? "Shared Text"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func startDownload(url: URL) {
+        withAnimation {
+            state = .downloading
+            startTime = Date()
+        }
+        
+        YTDLPManager.shared.download(
+            url: url.absoluteString, 
+            quality: selectedResolution,
+            audioOnly: isAudioOnly,
+            format: selectedFormat,
+            bitrate: selectedBitrate,
+            statusHandler: { prog, status in
+            DispatchQueue.main.async {
+                if prog >= 0 {
+                    self.progress = prog
+                    checkHaptics(prog)
+                }
+                self.statusMessage = status
+                checkTimeWarnings()
+            }
+        }) { result, logs in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let fileURL):
+                    self.downloadedFileURL = fileURL
+                    self.state = .readyForPreview
+                    self.progress = 1.0
+                    
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    
+                    let entry = VideoEntry(
+                        title: fileURL.lastPathComponent,
+                        url: url.absoluteString,
+                        service: url.host ?? "Unknown",
+                        status: .completed,
+                        localPath: fileURL.path
+                    )
+                    DatabaseManager.shared.insert(entry: entry, rawLog: logs)
+                    
+                    // Auto-open QuickLook
+                    openQuickLook(url: fileURL)
+                    
+                case .failure(let error):
+                    let errorMsg = error.localizedDescription
+                    self.showToast(errorMsg)
+                    self.state = .error(errorMsg)
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    
+                    let entry = VideoEntry(
+                        title: "Failed: \(url.host ?? "Link")",
+                        url: url.absoluteString,
+                        service: url.host ?? "Unknown",
+                        status: .failed,
+                        localPath: nil
+                    )
+                    DatabaseManager.shared.insert(entry: entry, rawLog: logs ?? errorMsg)
+                }
+            }
+        }
+    }
+    
+    private func checkHaptics(_ prog: Double) {
+        let settings = SettingsManager.shared
+        guard settings.vibrationEnabled else { return }
+        
+        let frequency = Double(settings.hapticFrequency) / 100.0 // e.g., 0.02
+        if prog >= lastHapticProgress + frequency {
+            hapticGenerator.impactOccurred()
+            lastHapticProgress = prog
+        }
+    }
+    
+    private func checkTimeWarnings() {
+        let settings = SettingsManager.shared
+        guard settings.toastEnabled else { return }
+        guard let start = startTime else { return }
+        let elapsed = Date().timeIntervalSince(start)
+        
+        // Use user defined delay for initial warning, then every 300s
+        let delay = Double(settings.toastDelaySeconds)
+        if elapsed > delay && elapsed < delay + 5 {
+            showToast("OSの制限により、長時間ダウンロードが中断される場合があります。")
+        }
+    }
+    
+    private func showToast(_ message: String) {
+        toastMessage = message
+        withAnimation { isShowingToast = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            withAnimation { isShowingToast = false }
+        }
+    }
+    
+    private func openQuickLook(url: URL) {
+        NotificationCenter.default.post(name: NSNotification.Name("OpenQuickLook"), object: url)
+    }
+}
     
     // UI Helpers
     private func selectionButton(title: String, isActive: Bool, action: @escaping () -> Void) -> some View {

@@ -12,67 +12,55 @@ struct HistoryView: View {
     
     var body: some View {
         NavigationView {
-            ZStack {
-                Color.black.ignoresSafeArea() // Deep black background for Nothing OS feel
-                
-                ScrollView {
-                    VStack(spacing: 12) {
-                        if entries.isEmpty {
+                List {
+                    if entries.isEmpty {
+                        Section {
                             VStack(spacing: 20) {
-                                Image(systemName: "tray")
-                                    .font(.system(size: 48))
-                                    .foregroundStyle(.secondary)
-                                DotMatrixText(text: "NO DOWNLOADS")
+                                Image(systemName: "tray.fill")
+                                    .font(.system(size: 44))
+                                    .foregroundStyle(.quaternary)
+                                DotMatrixText(text: "NO RECORDS FOUND", usesUppercase: true)
                             }
-                            .padding(.top, 100)
-                        } else {
-                            // Header Meta
-                            HStack {
-                                DotMatrixText(text: "\(entries.count) ITEMS STORED")
-                                Spacer()
-                            }
-                            .padding(.horizontal)
-                            .padding(.top, 8)
-
-                            LazyVStack(spacing: 12) {
-                                ForEach(entries) { entry in
-                                    HistoryRow(entry: entry, onDelete: {
-                                        deleteEntry(entry)
-                                    })
-                                }
-                                
-                                // Pagination
-                                if entries.count >= limit && entries.count % limit == 0 {
-                                    Button(action: loadMore) {
-                                        Text("LOAD MORE")
-                                            .font(.nothingMeta)
-                                            .padding()
-                                            .frame(maxWidth: .infinity)
-                                            .background(DesignSystem.Colors.nothingRed.opacity(0.1))
-                                            .cornerRadius(12)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 100)
+                        }
+                        .listRowBackground(Color.clear)
+                    } else {
+                        Section(header: DotMatrixText(text: "RECENT SEQUENCES")) {
+                            ForEach(entries) { entry in
+                                HistoryRow(entry: entry)
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            deleteEntry(entry)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
                                     }
+                            }
+                            
+                            if entries.count >= limit && entries.count % limit == 0 {
+                                Button(action: loadMore) {
+                                    Text("LOAD MORE")
+                                        .font(.nothingMeta)
+                                        .foregroundColor(DesignSystem.Colors.nothingRed)
+                                        .frame(maxWidth: .infinity)
                                 }
                             }
-                            .padding(.horizontal)
-                            .padding(.bottom, 100) // Space for floating bar
                         }
                     }
                 }
-            }
             .navigationTitle("History")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.black, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingDeletePicker = true }) {
                         Image(systemName: "trash")
-                            .foregroundStyle(DesignSystem.Colors.nothingRed)
+                            .foregroundColor(DesignSystem.Colors.nothingRed)
                     }
                 }
                 ToolbarItem(placement: .principal) {
                     Text("History")
-                        .font(.headline)
+                        .font(.system(size: 17, weight: .semibold))
                         .onTapGesture {
                             handleTitleTap()
                         }
@@ -93,32 +81,32 @@ struct HistoryView: View {
     
     private var bulkDeleteOverlay: some View {
         ZStack {
-            Color.black.opacity(0.4)
+            Color.black.opacity(0.2)
                 .ignoresSafeArea()
                 .onTapGesture { showingDeletePicker = false }
             
             VStack(spacing: 20) {
-                DotMatrixText(text: "DELETE BEFORE")
+                DotMatrixText(text: "CLEAR RECORDS")
                 
-                DatePicker("Select Date", selection: $deleteBeforeDate, displayedComponents: .date)
+                DatePicker("Before Date", selection: $deleteBeforeDate, displayedComponents: .date)
                     .datePickerStyle(.wheel)
                     .labelsHidden()
                 
                 HStack(spacing: 20) {
                     Button("CANCEL") { showingDeletePicker = false }
-                        .font(.nothingBody)
+                        .font(.system(size: 15, weight: .medium))
                     
                     Button("DELETE") {
                         bulkDelete()
                         showingDeletePicker = false
                     }
-                    .font(.nothingBody)
+                    .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(DesignSystem.Colors.nothingRed)
                 }
             }
             .padding()
-            .background(Material.thin)
-            .cornerRadius(20)
+            .background(.regularMaterial)
+            .cornerRadius(24)
             .padding(40)
         }
     }
@@ -184,12 +172,9 @@ struct HistoryView: View {
 
 struct HistoryRow: View {
     let entry: VideoEntry
-    let onDelete: () -> Void
-    @State private var isExpanded = false
-    @State private var rawLog: String? = nil
     
     var body: some View {
-        VStack(spacing: 0) {
+        NavigationLink(destination: DetailedLogView(targetEntryID: entry.id)) {
             HStack(spacing: 16) {
                 ServiceIcon(entry.service, size: 36)
                 
@@ -206,55 +191,22 @@ struct HistoryRow: View {
                 
                 Spacer()
                 
-                StatusIndicator(status: entry.status)
-            }
-            .padding(16)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                    isExpanded.toggle()
-                    if isExpanded && rawLog == nil {
-                        rawLog = DatabaseManager.shared.fetchRawLog(for: entry.id)
-                    }
-                }
-            }
-            
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 12) {
-                    Divider().opacity(0.1)
-                    
-                    VStack(alignment: .leading, spacing: 6) {
-                        DotMatrixText(text: "ACTIVITY LOG")
-                        
-                        Text(rawLog ?? "No log items recorded.")
-                            .font(.system(size: 10, weight: .regular, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(6)
-                            .multilineTextAlignment(.leading)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    
-                    NavigationLink(destination: DetailedLogView(targetEntryID: entry.id)) {
-                        HStack {
-                            Text("OPEN FULL SEQUENCE LOG")
-                            Image(systemName: "chevron.right")
-                        }
+                VStack(alignment: .trailing, spacing: 4) {
+                    StatusIndicator(status: entry.status)
+                    Text(formatDate(entry.date))
                         .font(.nothingMeta)
-                        .foregroundStyle(DesignSystem.Colors.nothingRed)
-                    }
-                    .padding(.top, 4)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
-                .transition(.opacity.combined(with: .move(edge: .top)))
             }
+            .padding(.vertical, 8)
         }
-        .liquidGlass(cornerRadius: 16) // Card look per row
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
-        }
+        .buttonStyle(.plain)
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM/dd HH:mm"
+        return formatter.string(from: date)
     }
 }
 

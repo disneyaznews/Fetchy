@@ -8,14 +8,15 @@
 		<dict>
 			<key>NSExtensionActivationRule</key>
 			<string>SUBQUERY (
-				extensionItems,
-				$extensionItem,
-				SUBQUERY (
-					$extensionItem.attachments,
-					$attachment,
-					ANY $attachment.registeredTypeIdentifiers UTICONFORMSTO "public.url"
-				).@count == 1
-			).@count == 1</string>
+                extensionItems,
+                $extensionItem,
+                SUBQUERY (
+                    $extensionItem.attachments,
+                    $attachment,
+                    ANY $attachment.registeredTypeIdentifiers UTICONFORMSTO "public.url" ||
+                    ANY $attachment.registeredTypeIdentifiers UTICONFORMSTO "public.plain-text"
+                ).@count >= 1
+            ).@count >= 1</string>
 		</dict>
 		<key>NSExtensionMainStoryboard</key>
 		<string>MainInterface</string>

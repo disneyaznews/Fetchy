@@ -3,7 +3,7 @@ import SwiftUI
 import Social
 import QuickLook
 
-class ShareViewController: UIViewController, QLPreviewControllerDataSource {
+class ShareViewController: UIViewController, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
 
     private var downloadedURL: URL?
 
@@ -11,7 +11,7 @@ class ShareViewController: UIViewController, QLPreviewControllerDataSource {
         super.viewDidLoad()
         
         // Setup SwiftUI
-        let shareView = ShareView(extensionContext: self.extensionContext)
+        var shareView = ShareView(extensionContext: self.extensionContext)
         let hostingController = UIHostingController(rootView: shareView)
         addChild(hostingController)
         view.addSubview(hostingController.view)
@@ -33,6 +33,7 @@ class ShareViewController: UIViewController, QLPreviewControllerDataSource {
             self.downloadedURL = url
             let qlVC = QLPreviewController()
             qlVC.dataSource = self
+            qlVC.delegate = self // Set delegate for cleanup
             self.present(qlVC, animated: true, completion: nil)
         }
     }
@@ -46,15 +47,29 @@ class ShareViewController: UIViewController, QLPreviewControllerDataSource {
         return downloadedURL! as QLPreviewItem
     }
     
+    // MARK: - QLPreviewControllerDelegate (Cleanup)
+    func previewControllerDidDismiss(_ controller: QLPreviewController) {
+        cleanUpTempFile()
+    }
+    
+    private func cleanUpTempFile() {
+        if let url = downloadedURL {
+            try? FileManager.default.removeItem(at: url)
+            print("[Share] Cleanup: Removed temp file at \(url.path)")
+            self.downloadedURL = nil
+        }
+    }
+    
     // Clean up
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        // Logic to complete extension request if finished?
-        // self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+        cleanUpTempFile()
+        // Cancel polling if active
+        YTDLPManager.shared.cancel()
     }
     
     deinit {
         NotificationCenter.default.removeObserver(self)
-        // Cleanup temp files if needed, though they are in temp directory
+        cleanUpTempFile()
     }
 }

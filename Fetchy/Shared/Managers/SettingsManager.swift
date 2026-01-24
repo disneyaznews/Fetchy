@@ -17,6 +17,10 @@ class SettingsManager: ObservableObject {
         didSet { save("vibrationStrength", value: vibrationStrength) }
     }
     
+    @Published var hapticFrequency: Int = 2 { // 2% steps
+        didSet { save("hapticFrequency", value: hapticFrequency) }
+    }
+    
     @Published var progressVisible: Bool = false {
         didSet { save("progressVisible", value: progressVisible) }
     }
@@ -25,8 +29,8 @@ class SettingsManager: ObservableObject {
         didSet { save("toastEnabled", value: toastEnabled) }
     }
     
-    @Published var toastIntervals: String = "5,8" {
-        didSet { save("toastIntervals", value: toastIntervals) }
+    @Published var toastDelaySeconds: Int = 5 { // Default 5s
+        didSet { save("toastDelaySeconds", value: toastDelaySeconds) }
     }
     
     @Published var defaultResolution: String = "1080p" {
@@ -40,15 +44,17 @@ class SettingsManager: ObservableObject {
     private init() {
         self.vibrationEnabled = store?.bool(forKey: "vibrationEnabled") ?? true
         self.vibrationStrength = store?.string(forKey: "vibrationStrength") ?? "light"
+        self.hapticFrequency = store?.integer(forKey: "hapticFrequency") == 0 ? 2 : store!.integer(forKey: "hapticFrequency")
         self.progressVisible = store?.bool(forKey: "progressVisible") ?? false
         self.toastEnabled = store?.bool(forKey: "toastEnabled") ?? true
-        self.toastIntervals = store?.string(forKey: "toastIntervals") ?? "5,8"
+        self.toastDelaySeconds = store?.integer(forKey: "toastDelaySeconds") == 0 ? 5 : store!.integer(forKey: "toastDelaySeconds")
         self.defaultResolution = store?.string(forKey: "defaultResolution") ?? "1080p"
         self.defaultQuality = store?.string(forKey: "defaultQuality") ?? "44.1k"
     }
     
     private func save(_ key: String, value: Any) {
         store?.set(value, forKey: key)
+        store?.synchronize() // Force sync for Extension
     }
     
     func getValue<T>(forKey key: String) -> T? {

@@ -8,14 +8,30 @@ class DatabaseManager {
     // TODO: Use App Group container in production
     let appGroupIdentifier = "group.com.nisesimadao.Fetchy"
     
-    // For now, using standard document directory for initial implementation
     private var dbPath: String {
-        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        return paths[0].appendingPathComponent("fetchy.sqlite").path
+        let fileManager = FileManager.default
+        guard let containerURL = fileManager.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else {
+            // Fallback to documents directoy if App Group is unavailable
+            let paths = fileManager.urls(for: .documentDirectory, in: .userDomainMask)
+            return paths[0].appendingPathComponent("fetchy.sqlite").path
+        }
+        
+        let targetPath = containerURL.appendingPathComponent("fetchy.sqlite").path
+        
+        // Migrate old DB if it exists in locally
+        let oldPaths = fileManager.urls(for: .documentDirectory, in: .userDomainMask)
+        let oldPath = oldPaths[0].appendingPathComponent("fetchy.sqlite").path
+        if fileManager.fileExists(atPath: oldPath) && !fileManager.fileExists(atPath: targetPath) {
+            try? fileManager.moveItem(atPath: oldPath, toPath: targetPath)
+            print("Database migrated to App Group container.")
+        }
+        
+        return targetPath
     }
     
     init() {
         openDatabase()
+        enableWAL()
         createTable()
     }
     
@@ -23,6 +39,10 @@ class DatabaseManager {
         if sqlite3_open(dbPath, &db) != SQLITE_OK {
             print("Error opening database")
         }
+    }
+    
+    private func enableWAL() {
+        sqlite3_exec(db, "PRAGMA journal_mode=WAL;", nil, nil, nil)
     }
     
     private func createTable() {
@@ -67,7 +87,13 @@ class DatabaseManager {
             let dateVal = entry.date.timeIntervalSince1970
             let statusStr = entry.status.rawValue as NSString
             let localPathStr = (entry.localPath ?? "") as NSString
-            let rawLogStr = (rawLog ?? "") as NSString
+            
+            // Truncate logs if they are too large (> 10KB) to prevent DB bloating
+            var rawLogStr = (rawLog ?? "") as NSString
+            if rawLogStr.length > 10000 {
+                let suffix = rawLogStr.substring(from: rawLogStr.length - 10000)
+                rawLogStr = "[Log truncated for brevity...]\n\(suffix)" as NSString
+            }
             
             sqlite3_bind_text(insertStatement, 1, idStr.utf8String, -1, nil)
             sqlite3_bind_text(insertStatement, 2, titleStr.utf8String, -1, nil)

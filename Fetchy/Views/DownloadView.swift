@@ -25,7 +25,11 @@ struct DownloadView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
                 
                 VStack(spacing: 16) {
                     // Input Section
@@ -78,17 +82,8 @@ struct DownloadView: View {
                         VStack(spacing: 12) {
                             DotMatrixText(text: statusMessage)
                             
-                            GeometryReader { geo in
-                                ZStack(alignment: .leading) {
-                                    Capsule()
-                                        .fill(Color.secondary.opacity(0.2))
-                                    
-                                    Capsule()
-                                        .fill(DesignSystem.Colors.nothingRed)
-                                        .frame(width: geo.size.width * progress)
-                                }
-                            }
-                            .frame(height: 6)
+                            ProgressView(value: progress)
+                                .tint(DesignSystem.Colors.nothingRed)
                             
                             HStack {
                                 Text("\(Int(progress * 100))%")
@@ -98,7 +93,7 @@ struct DownloadView: View {
                             .font(.nothingMeta)
                         }
                         .padding()
-                        .liquidGlass()
+                        .liquidGlass(cornerRadius: 12)
                         .padding(.horizontal)
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
@@ -110,7 +105,6 @@ struct DownloadView: View {
                         HStack {
                             if isDownloading {
                                 ProgressView()
-                                    .tint(.white)
                                     .padding(.trailing, 8)
                             }
                             Text(isDownloading ? "SEQUENCE ACTIVE" : "INITIATE DOWNLOAD")
@@ -119,8 +113,8 @@ struct DownloadView: View {
                     }
                     .buttonStyle(IndustrialButtonStyle())
                     .disabled(urlInput.isEmpty || isDownloading)
-                    .padding()
-                    .padding(.bottom, 90) // Base padding for floating bar
+                    .padding(.horizontal)
+                    .padding(.bottom, 100)
                 }
                 .padding(.top, 10)
             }

@@ -4,10 +4,15 @@ import SwiftUI
 
 enum DesignSystem {
     enum Colors {
-        static let glassLight = Color.white.opacity(0.4)
-        static let glassDark = Color.black.opacity(0.6)
-        static let borderLight = Color.white.opacity(0.6)
-        static let borderDark = Color.white.opacity(0.1)
+        // Semantic glass colors
+        static func glass(for colorScheme: ColorScheme) -> Color {
+            colorScheme == .dark ? Color.black.opacity(0.6) : Color.white.opacity(0.4)
+        }
+        
+        static func border(for colorScheme: ColorScheme) -> Color {
+            colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05)
+        }
+        
         static let nothingRed = Color(red: 0.85, green: 0.1, blue: 0.1)
     }
     
@@ -23,7 +28,7 @@ enum DesignSystem {
     }
 }
 
-// MARK: - 1. LiquidGlass Material (Physics-Based)
+// MARK: - 1. LiquidGlass Material (Optimized Physics-Based)
 
 struct LiquidGlassModifier: ViewModifier {
     @Environment(\.colorScheme) var colorScheme
@@ -35,62 +40,40 @@ struct LiquidGlassModifier: ViewModifier {
     
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
-            content.glassEffect() // Native Liquid Logic
+            content.glassEffect()
         } else {
-            manualStack(content)
+            optimizedManualStack(content)
         }
     }
     
     @ViewBuilder
-    private func manualStack(_ content: Content) -> some View {
+    private func optimizedManualStack(_ content: Content) -> some View {
         content
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)) // Ensure content is clipped
             .background(
                 ZStack {
-                    if colorScheme == .dark {
-                        Color.black.opacity(0.8)
-                    } else {
-                        Color.white.opacity(0.8)
-                    }
-
-                    Rectangle()
-                        .fill(colorScheme == .dark ? DesignSystem.Colors.glassDark : DesignSystem.Colors.glassLight)
-                        .background(.ultraThinMaterial)
+                    // Optimized Material Layer
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(DesignSystem.Colors.glass(for: colorScheme))
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    
+                    // Refraction Highlight (Inner border)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [.white.opacity(colorScheme == .dark ? 0.3 : 0.6), .clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 0.5
+                        )
                 }
             )
             .overlay(
+                // Silhouette Border
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            gradient: Gradient(stops: [
-                                .init(color: .white.opacity(0.4), location: 0),
-                                .init(color: .white.opacity(0.05), location: 1)
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
+                    .stroke(DesignSystem.Colors.border(for: colorScheme), lineWidth: 0.5)
             )
-            .overlay(
-                contentHeightClippingSheen()
-            )
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.05), lineWidth: 0.5)
-            )
-    }
-    
-    @ViewBuilder
-    private func contentHeightClippingSheen() -> some View {
-        // Simplified sheen that doesn't stretch weirdly on tall items
-        GeometryReader { _ in
-            LinearGradient(
-                gradient: Gradient(colors: [.white.opacity(0.05), .clear]),
-                startPoint: .topLeading,
-                endPoint: .center
-            )
-        }
     }
 }
 
@@ -100,66 +83,74 @@ extension View {
     }
 }
 
-// MARK: - 2. Nothing Design Elements (Industrial/Dot Matrix)
+// MARK: - 2. Design Elements
 
-// Font Extensions
 extension Font {
+    // Balanced Font System - Toned down for Apple HIG harmony
     static let nothingHeader = Font.system(size: 20, weight: .semibold, design: .default)
     static let nothingBody = Font.system(size: 15, weight: .regular, design: .default)
-    static let nothingMeta = Font.system(size: 11, weight: .medium, design: .monospaced)
+    static let nothingMeta = Font.system(size: 11, weight: .semibold, design: .default) // Standard design instead of monospaced
 }
 
-// Dot Matrix Text Component
 struct DotMatrixText: View {
     let text: String
+    var usesUppercase: Bool = true
     
     var body: some View {
-        Text(text.uppercased())
+        Text(usesUppercase ? text.uppercased() : text)
             .font(.nothingMeta)
-            .kerning(1.2)
+            .kerning(0.5) // Reduced kerning
             .foregroundStyle(.secondary)
     }
 }
 
-// Industrial Button Style
 struct IndustrialButtonStyle: ButtonStyle {
+    @Environment(\.colorScheme) var colorScheme
+    
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.nothingBody)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .font(.system(size: 15, weight: .medium))
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
             .background(
                 Capsule()
-                    .fill(Color.primary.opacity(0.05))
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
                     .overlay(
                         Capsule()
-                            .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                            .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
                     )
             )
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 
 // MARK: - 3. Common Components
 
 struct ToastView: View {
+    @Environment(\.colorScheme) var colorScheme
     let message: String
     var isWarning: Bool = false
     
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: isWarning ? "exclamationmark.triangle" : "info.circle")
-                .font(.system(size: 14, weight: .bold))
+            Image(systemName: isWarning ? "exclamationmark.triangle.fill" : "info.circle.fill")
                 .foregroundColor(isWarning ? .yellow : DesignSystem.Colors.nothingRed)
             
             Text(message)
-                .font(.nothingMeta)
-                .lineLimit(2)
+                .font(.system(size: 13, weight: .medium))
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .liquidGlass(cornerRadius: 12)
-        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .padding(.vertical, 12)
+        .background(
+            Capsule()
+                .fill(.thinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+        )
+        .overlay(
+            Capsule()
+                .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
+        )
     }
 }
