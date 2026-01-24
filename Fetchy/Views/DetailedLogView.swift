@@ -126,19 +126,21 @@ struct DetailedLogView: View {
     
     private var logViewerSheet: some View {
         NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                // Header (non-scrolling)
+                VStack(alignment: .leading, spacing: 8) {
                     Text(selectedTitle)
                         .font(.nothingHeader)
-                        .padding(.top)
                     
                     Divider().background(Color.white.opacity(0.2))
-                    
-                    SelectableLogView(text: selectedLog ?? "Log details are unavailable for this entry.")
-                        .fixedSize(horizontal: false, vertical: true) // Force vertical growth
-                        .padding(.bottom, 40)
                 }
                 .padding(.horizontal)
+                .padding(.top)
+                
+                // Selectable, Wrapping, Scrolling Log Area
+                SelectableLogView(text: selectedLog ?? "Log details are unavailable for this entry.")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.bottom, 20)
             }
             .background(Color.black.ignoresSafeArea())
             .navigationTitle("RAW OUTPUT")
@@ -153,7 +155,7 @@ struct DetailedLogView: View {
         }
     }
     
-    // Selectable TextView using UIKit for partial selection support
+    // Selectable TextView using UIKit for partial selection and wrapping support
     struct SelectableLogView: UIViewRepresentable {
         let text: String
         
@@ -161,21 +163,26 @@ struct DetailedLogView: View {
             let textView = UITextView()
             textView.isEditable = false
             textView.isSelectable = true
-            textView.isScrollEnabled = false // Let SwiftUI ScrollView handle it
+            textView.isScrollEnabled = true // Enable internal scrolling
             textView.backgroundColor = .clear
             textView.textColor = .white
             textView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
-            textView.textContainerInset = .zero
+            textView.textContainerInset = UIEdgeInsets(top: 10, left: 16, bottom: 20, right: 16)
             textView.textContainer.lineFragmentPadding = 0
-            textView.textContainer.lineBreakMode = .byWordWrapping // Ensure wrapping
+            textView.textContainer.lineBreakMode = .byWordWrapping
+            textView.textContainer.widthTracksTextView = true
             
-            // Allow partial selection
-            textView.dataDetectorTypes = []
+            // Ensure it doesn't try to grow wider than allowed
+            textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            
             return textView
         }
         
         func updateUIView(_ uiView: UITextView, context: Context) {
             uiView.text = text
+            // Maintain styling
+            uiView.textColor = .white
+            uiView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
         }
     }
     

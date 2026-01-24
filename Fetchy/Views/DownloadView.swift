@@ -125,6 +125,7 @@ struct DownloadView: View {
                 .padding(.top, 10)
             }
             .navigationTitle("Download")
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showPreview) {
                 if let url = previewURL {
                     QuickLookView(url: url)
@@ -269,4 +270,8 @@ struct QuickLookView: UIViewControllerRepresentable {
             return parent.url as QLPreviewItem
         }
     }
+}
+
+#Preview {
+    DownloadView()
 }
