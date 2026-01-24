@@ -10,8 +10,13 @@ struct HistoryView: View {
     @State private var deleteBeforeDate = Date()
     @State private var titleTapCount = 0
     @State private var lastTapTime = Date()
+    @State private var previewURL: URL?
     
     var body: some View {
+        ZStack {
+            Color(.systemGroupedBackground)
+                .ignoresSafeArea()
+            
             List {
                 if entries.isEmpty {
                     Section {
@@ -50,6 +55,8 @@ struct HistoryView: View {
                     }
                 }
             }
+            .listStyle(.plain)
+        }
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -76,6 +83,17 @@ struct HistoryView: View {
             if entries.isEmpty {
                 loadEntries()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenQuickLook"))) { notification in
+            if let url = notification.object as? URL {
+                self.previewURL = url
+            }
+        }
+        .sheet(item: Binding(
+            get: { previewURL.map { IdentifiableURL(url: $0) } },
+            set: { previewURL = $0?.url }
+        )) { idURL in
+            QuickLookView(url: idURL.url)
         }
     }
     
@@ -193,7 +211,7 @@ struct HistoryRow: View {
                 Spacer()
                 
                 VStack(alignment: .trailing, spacing: 4) {
-                    StatusIndicator(status: entry.status, task: task)
+                    StatusIndicator(status: entry.status, task: task, entry: entry)
                     Text(formatDate(entry.date))
                         .font(.nothingMeta)
                         .foregroundStyle(.secondary)
@@ -211,30 +229,39 @@ struct HistoryRow: View {
     }
 }
 
-
 struct StatusIndicator: View {
     let status: VideoEntry.DownloadStatus
     @ObservedObject var task: DownloadTask?
+    let entry: VideoEntry
     
     var body: some View {
         if let task = task {
             ProgressView(value: task.progress)
                 .scaleEffect(0.8)
         } else {
-            switch status {
-            case .completed:
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(DesignSystem.Colors.nothingRed)
-            case .failed:
-                Image(systemName: "exclamationmark.circle.fill")
-                    .foregroundStyle(.secondary)
-            case .downloading:
-                ProgressView()
-                    .scaleEffect(0.8)
-            case .pending:
-                Image(systemName: "clock")
-                    .foregroundStyle(.secondary)
+            Button(action: {
+                if status == .completed, let path = entry.localPath {
+                    let url = URL(fileURLWithPath: path)
+                    NotificationCenter.default.post(name: NSNotification.Name("OpenQuickLook"), object: url)
+                }
+            }) {
+                switch status {
+                case .completed:
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(DesignSystem.Colors.nothingRed)
+                case .failed:
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                case .downloading:
+                    ProgressView()
+                        .scaleEffect(0.8)
+                case .pending:
+                    Image(systemName: "clock")
+                        .foregroundStyle(.secondary)
+                }
             }
+            .buttonStyle(.plain)
+            .disabled(status != .completed)
         }
     }
 }

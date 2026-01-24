@@ -7,16 +7,14 @@
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>NSExtensionActivationRule</key>
-			<string>SUBQUERY (
-                extensionItems,
-                $extensionItem,
-                SUBQUERY (
-                    $extensionItem.attachments,
-                    $attachment,
-                    ANY $attachment.registeredTypeIdentifiers UTICONFORMSTO "public.url" ||
-                    ANY $attachment.registeredTypeIdentifiers UTICONFORMSTO "public.plain-text"
-                ).@count >= 1
-            ).@count >= 1</string>
+			<dict>
+				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
+				<integer>1</integer>
+				<key>NSExtensionActivationSupportsText</key>
+				<true/>
+				<key>NSExtensionActivationSupportsWebPageWithMaxCount</key>
+				<integer>1</integer>
+			</dict>
 		</dict>
 		<key>NSExtensionMainStoryboard</key>
 		<string>MainInterface</string>
