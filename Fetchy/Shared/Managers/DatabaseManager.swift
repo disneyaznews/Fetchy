@@ -89,7 +89,7 @@ class DatabaseManager {
             let localPathStr = (entry.localPath ?? "") as NSString
             
             // Truncate logs if they are too large (> 10KB) to prevent DB bloating
-            var rawLogStr = (rawLog ?? "") as NSString
+            var rawLogStr = (rawLog ?? entry.rawLog ?? "") as NSString
             if rawLogStr.length > 10000 {
                 let suffix = rawLogStr.substring(from: rawLogStr.length - 10000)
                 rawLogStr = "[Log truncated for brevity...]\n\(suffix)" as NSString
@@ -125,16 +125,29 @@ class DatabaseManager {
             sqlite3_bind_int(queryStatement, 2, Int32(offset))
             
             while sqlite3_step(queryStatement) == SQLITE_ROW {
-                let idStr = String(cString: sqlite3_column_text(queryStatement, 0))
-                let title = String(cString: sqlite3_column_text(queryStatement, 1))
-                let url = String(cString: sqlite3_column_text(queryStatement, 2))
-                let service = String(cString: sqlite3_column_text(queryStatement, 3))
+                // Safeguard against NULL explicitly to prevent crashes
+                let idStr = String(cString: sqlite3_column_text(queryStatement, 0)!)
+                let title = String(cString: sqlite3_column_text(queryStatement, 1)!)
+                let url = String(cString: sqlite3_column_text(queryStatement, 2)!)
+                let service = String(cString: sqlite3_column_text(queryStatement, 3)!)
                 let dateVal = sqlite3_column_double(queryStatement, 4)
-                let statusStr = String(cString: sqlite3_column_text(queryStatement, 5))
-                let localPath = String(cString: sqlite3_column_text(queryStatement, 6))
+                let statusStr = String(cString: sqlite3_column_text(queryStatement, 5)!)
+                
+                // Safe unwrap for optional columns
+                var localPath: String? = nil
+                if let cStr = sqlite3_column_text(queryStatement, 6) {
+                    localPath = String(cString: cStr)
+                }
+                
+                var rawLog: String? = nil
+                if let cStr = sqlite3_column_text(queryStatement, 7) {
+                    rawLog = String(cString: cStr)
+                }
                 
                 if let id = UUID(uuidString: idStr),
                    let status = VideoEntry.DownloadStatus(rawValue: statusStr) {
+                    
+                    let finalLocalPath = (localPath?.isEmpty ?? true) ? nil : localPath
                     
                     let entry = VideoEntry(
                         id: id,
@@ -143,7 +156,8 @@ class DatabaseManager {
                         service: service,
                         date: Date(timeIntervalSince1970: dateVal),
                         status: status,
-                        localPath: localPath.isEmpty ? nil : localPath
+                        rawLog: rawLog,
+                        localPath: finalLocalPath
                     )
                     entries.append(entry)
                 }

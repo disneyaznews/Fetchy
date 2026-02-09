@@ -2,48 +2,55 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab = 0
+    @State private var splashActive = false
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            // Tab 0: History
-            NavigationView {
-                HistoryView()
-            }
-            .tag(0)
-            .tabItem {
-                Image(systemName: "clock")
-                Text("History")
-            }
-            
-            // Tab 1: Download
-            DownloadView()
-                .tag(1)
+        ZStack {
+            TabView(selection: $selectedTab) {
+                // Tab 0: History
+                NavigationView {
+                    HistoryView()
+                }
+                .tag(0)
                 .tabItem {
-                    Image(systemName: "arrow.down.circle")
-                    Text("Download")
+                    Image(systemName: "clock")
+                    Text("History")
                 }
                 
-            // Tab 2: Downloads
-            NavigationView {
-                DownloadsView()
+                // Tab 1: Download
+                DownloadView()
+                    .tag(1)
+                    .tabItem {
+                        Image(systemName: "arrow.down.circle")
+                        Text("Download")
+                    }
+                    
+                // Tab 2: Settings
+                NavigationView {
+                    SettingsView()
+                }
+                .tag(2)
+                .tabItem {
+                    Image(systemName: "gearshape")
+                    Text("Settings")
+                }
             }
-            .tag(2)
-            .tabItem {
-                Image(systemName: "arrow.down.app")
-                Text("Downloads")
-            }
+            .accentColor(DesignSystem.Colors.nothingRed)
             
-            // Tab 3: Settings
-            NavigationView {
-                SettingsView()
-            }
-            .tag(3)
-            .tabItem {
-                Image(systemName: "gearshape")
-                Text("Settings")
+            if splashActive {
+                ZStack {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .ignoresSafeArea()
+                    
+                    SplashVideoView(videoName: "Splash.mov", isActive: $splashActive)
+                }
+                .ignoresSafeArea()
+                .transition(.opacity)
+                .zIndex(1)
             }
         }
-        .accentColor(DesignSystem.Colors.nothingRed)
+        .animation(.easeInOut(duration: 0.8), value: splashActive)
     }
 }
 

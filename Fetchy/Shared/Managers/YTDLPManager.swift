@@ -1,11 +1,20 @@
 import Foundation
 import Combine
 
-enum YTDLPError: Error {
+enum YTDLPError: LocalizedError {
     case apiError(String)
     case networkError(Error)
     case timeout
     case unknown
+    
+    var errorDescription: String? {
+        switch self {
+        case .apiError(let msg): return msg
+        case .networkError(let error): return error.localizedDescription
+        case .timeout: return "Request timed out"
+        case .unknown: return "An unknown error occurred"
+        }
+    }
 }
 
 class YTDLPManager {
@@ -20,17 +29,23 @@ class YTDLPManager {
                   audioOnly: Bool = false,
                   format: String = "mp4",
                   bitrate: String = "192",
-                  statusHandler: @escaping (Double, String) -> Void,
+                  embedMetadata: Bool = true,
+                  embedThumbnail: Bool = true,
+                  removeSponsors: Bool = false,
+                  embedSubtitles: Bool = false,
+                  embedChapters: Bool = false,
+                  outputTemplate: String? = nil, // Custom output path support
+                  statusHandler: @escaping (Double, String, String?, String?) -> Void,
                   completion: @escaping (Result<URL, Error>, String?) -> Void) {
         
         pollingTask = Task {
             do {
                 // Start download job
-                let jobId = try await apiClient.startDownload(url: url, quality: quality, audioOnly: audioOnly, format: format, bitrate: bitrate)
+                let jobId = try await apiClient.startDownload(url: url, quality: quality, audioOnly: audioOnly, format: format, bitrate: bitrate, embedMetadata: embedMetadata, embedThumbnail: embedThumbnail, removeSponsors: removeSponsors, embedSubtitles: embedSubtitles, embedChapters: embedChapters)
                 print("[API] Job started: \(jobId)")
                 
                 // Poll for status
-                try await pollStatus(jobId: jobId, statusHandler: statusHandler, completion: completion)
+                try await pollStatus(jobId: jobId, outputTemplate: outputTemplate, statusHandler: statusHandler, completion: completion)
                 
             } catch {
                 print("[API] Error starting download: \(error)")
@@ -41,7 +56,8 @@ class YTDLPManager {
     
     /// Poll job status until completion
     private func pollStatus(jobId: String,
-                           statusHandler: @escaping (Double, String) -> Void,
+                           outputTemplate: String?,
+                           statusHandler: @escaping (Double, String, String?, String?) -> Void,
                            completion: @escaping (Result<URL, Error>, String?) -> Void) async throws {
         
         print("[YTDLP] Starting poll for \(jobId)")
@@ -53,30 +69,40 @@ class YTDLPManager {
                 let status = try await apiClient.getStatus(jobId: jobId)
                 
                 // Update progress
-                statusHandler(status.progress, status.message)
+                statusHandler(status.progress, status.message, status.extractor, status.title)
                 
                 switch status.status {
                 case "completed":
-                    // Download file to App Group shared container
-                    let appGroupIdentifier = "group.com.nisesimadao.Fetchy"
-                    guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else {
-                        completion(.failure(YTDLPError.apiError("Could not access App Group")), nil)
-                        return
+                    // Notify UI that we are now transferring the file
+                    statusHandler(1.0, "DOWNLOADING FILE...", status.extractor, status.title)
+                    
+                    // Determine destination
+                    let destinationURL: URL
+                    if let template = outputTemplate {
+                        destinationURL = URL(fileURLWithPath: template)
+                    } else {
+                        // Fallback logic (legacy)
+                        let appGroupIdentifier = "group.com.nisesimadao.Fetchy"
+                        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else {
+                            completion(.failure(YTDLPError.apiError("Could not access App Group")), nil)
+                            return
+                        }
+                        let downloadsDir = containerURL.appendingPathComponent("downloads", isDirectory: true)
+                        try? FileManager.default.createDirectory(at: downloadsDir, withIntermediateDirectories: true)
+                        let fileName = status.filename ?? status.title?.appending(".mp4") ?? "video.mp4"
+                        destinationURL = downloadsDir.appendingPathComponent(fileName)
                     }
                     
-                    let downloadsDir = containerURL.appendingPathComponent("downloads", isDirectory: true)
-                    try? FileManager.default.createDirectory(at: downloadsDir, withIntermediateDirectories: true)
-                    
-                    let fileName = status.filename ?? status.title?.appending(".mp4") ?? "video.mp4"
-                    let destination = downloadsDir.appendingPathComponent(fileName)
-                    
-                    if FileManager.default.fileExists(atPath: destination.path) {
-                        try? FileManager.default.removeItem(at: destination)
+                    // Remove existing file at destination if present to ensure clean write
+                    if FileManager.default.fileExists(atPath: destinationURL.path) {
+                        try? FileManager.default.removeItem(at: destinationURL)
                     }
                     
-                    try await apiClient.downloadFile(jobId: jobId, to: destination)
+                    try await apiClient.downloadFile(jobId: jobId, to: destinationURL) { progress in
+                        statusHandler(progress, "DOWNLOADING FILE...", status.extractor, status.title)
+                    }
                     let log = try? await apiClient.getLog(jobId: jobId)
-                    completion(.success(destination), log)
+                    completion(.success(destinationURL), log)
                     return
                     
                 case "failed":

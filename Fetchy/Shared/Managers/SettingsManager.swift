@@ -37,8 +37,36 @@ class SettingsManager: ObservableObject {
         didSet { save("defaultResolution", value: defaultResolution) }
     }
     
-    @Published var defaultQuality: String = "44.1k" {
-        didSet { save("defaultQuality", value: defaultQuality) }
+    @Published var defaultBitrate: String = "192" {
+        didSet { save("defaultBitrate", value: defaultBitrate) }
+    }
+    
+    @Published var defaultVideoFormat: String = "mp4" {
+        didSet { save("defaultVideoFormat", value: defaultVideoFormat) }
+    }
+    
+    @Published var defaultAudioFormat: String = "mp3" {
+        didSet { save("defaultAudioFormat", value: defaultAudioFormat) }
+    }
+    
+    @Published var embedMetadata: Bool = false {
+        didSet { save("embedMetadata", value: embedMetadata) }
+    }
+    
+    @Published var embedThumbnail: Bool = false {
+        didSet { save("embedThumbnail", value: embedThumbnail) }
+    }
+    
+    @Published var removeSponsors: Bool = false {
+        didSet { save("removeSponsors", value: removeSponsors) }
+    }
+    
+    @Published var embedSubtitles: Bool = false {
+        didSet { save("embedSubtitles", value: embedSubtitles) }
+    }
+    
+    @Published var embedChapters: Bool = false {
+        didSet { save("embedChapters", value: embedChapters) }
     }
     
     private init() {
@@ -49,7 +77,14 @@ class SettingsManager: ObservableObject {
         self.toastEnabled = store?.bool(forKey: "toastEnabled") ?? true
         self.toastDelaySeconds = store?.integer(forKey: "toastDelaySeconds") == 0 ? 5 : store!.integer(forKey: "toastDelaySeconds")
         self.defaultResolution = store?.string(forKey: "defaultResolution") ?? "1080p"
-        self.defaultQuality = store?.string(forKey: "defaultQuality") ?? "44.1k"
+        self.defaultBitrate = store?.string(forKey: "defaultBitrate") ?? "192"
+        self.defaultVideoFormat = store?.string(forKey: "defaultVideoFormat") ?? "mp4"
+        self.defaultAudioFormat = store?.string(forKey: "defaultAudioFormat") ?? "mp3"
+        self.embedMetadata = store?.bool(forKey: "embedMetadata") ?? false
+        self.embedThumbnail = store?.bool(forKey: "embedThumbnail") ?? false
+        self.removeSponsors = store?.bool(forKey: "removeSponsors") ?? false
+        self.embedSubtitles = store?.bool(forKey: "embedSubtitles") ?? false
+        self.embedChapters = store?.bool(forKey: "embedChapters") ?? false
     }
     
     private func save(_ key: String, value: Any) {
