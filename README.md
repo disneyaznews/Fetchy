@@ -20,9 +20,9 @@ and battery-efficient.
 flowchart LR
 
 User((User))
-App[iOS App (SwiftUI)]
+App[iOS App - SwiftUI]
 Share[Share Extension]
-Backend[Public Node.js Backend (Railway)]
+Backend[Public Node.js Backend - Railway,etc]
 Queue[Job Processing System]
 YTDLP[yt-dlp Engine]
 Storage[Output Storage]
