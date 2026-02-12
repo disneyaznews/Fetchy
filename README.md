@@ -224,4 +224,4 @@ Pull Requests and Issues are welcome!
 
 ## 📄 License
 
-MIT License
+[MIT License](LICENSE)
