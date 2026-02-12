@@ -25,7 +25,7 @@ struct SettingsView: View {
                                     Spacer()
                                     Text("\(settings.hapticFrequency)%")
                                         .foregroundStyle(DesignSystem.Colors.nothingRed)
-                                        .fontWeight(.bold)
+                                        .font(.system(size: UIFont.preferredFont(forTextStyle: .body).pointSize, weight: .bold))
                                 }
                             }
                         }
@@ -130,3 +130,4 @@ struct SettingsView: View {
         .animation(.easeInOut(duration: 0.8), value: playingSplash)
     }
 }
+

@@ -87,37 +87,39 @@ struct HistoryView: View {
             }
         }
         .sheet(isPresented: $showingDeletePicker) {
-            NavigationView {
-                VStack(spacing: 20) {
-                    DotMatrixText(text: "DELETE RECORDS BEFORE DATE")
-                        .padding(.top)
-                    
-                    DatePicker("Before Date", selection: $deleteBeforeDate, displayedComponents: .date)
-                        .datePickerStyle(.wheel)
-                        .labelsHidden()
+            Group {
+                NavigationView {
+                    VStack(spacing: 20) {
+                        DotMatrixText(text: "DELETE RECORDS BEFORE DATE")
+                            .padding(.top)
+                        
+                        DatePicker("Before Date", selection: $deleteBeforeDate, displayedComponents: .date)
+                            .datePickerStyle(.wheel)
+                            .labelsHidden()
+                            .padding()
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            bulkDelete()
+                            showingDeletePicker = false
+                        }) {
+                            Text("DELETE RECORDS")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(IndustrialButtonStyle()) // Assuming this style exists, or use plain button
                         .padding()
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        bulkDelete()
-                        showingDeletePicker = false
-                    }) {
-                        Text("DELETE RECORDS")
-                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(IndustrialButtonStyle()) // Assuming this style exists, or use plain button
-                    .padding()
-                }
-                .navigationTitle("Clear History")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Cancel") { showingDeletePicker = false }
+                    .navigationTitle("Clear History")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Cancel") { showingDeletePicker = false }
+                        }
                     }
                 }
             }
-            .presentationDetents([.medium])
+            .modifier(PresentationDetentsIfAvailable())
         }
         .onAppear {
             loadEntries()
@@ -357,6 +359,16 @@ struct StatusIndicator: View {
                 Image(systemName: "xmark.circle")
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+}
+
+fileprivate struct PresentationDetentsIfAvailable: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            content.presentationDetents([.medium])
+        } else {
+            content
         }
     }
 }

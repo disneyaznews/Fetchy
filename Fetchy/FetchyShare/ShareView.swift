@@ -269,9 +269,15 @@ struct ShareView: View {
     
     private var initialStateView: some View {
         VStack(spacing: 24) {
-            Image(systemName: "link.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(DesignSystem.Colors.nothingRed)
+            if #available(iOS 15.0, *) {
+                Image(systemName: "link.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(DesignSystem.Colors.nothingRed)
+            } else {
+                Image(systemName: "link.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(DesignSystem.Colors.nothingRed)
+            }
             
             VStack(spacing: 4) {
                 Text(viewModel.videoTitle)
@@ -375,11 +381,16 @@ struct ShareView: View {
                         .padding(.horizontal, 4)
                     },
                     label: {
-                        DotMatrixText(text: "ADVANCED OPTIONS")
-                            .foregroundStyle(.secondary)
+                        if #available(iOS 15.0, *) {
+                            DotMatrixText(text: "ADVANCED OPTIONS")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            DotMatrixText(text: "ADVANCED OPTIONS")
+                                .foregroundColor(.secondary)
+                        }
                     }
                 )
-                .tint(.primary)
+                .if(availableiOS: 15.0, then: { $0.tint(.primary) }, else: { $0.accentColor(.primary) })
                 .padding(.top, 8)
             }
             .padding()
@@ -398,10 +409,20 @@ struct ShareView: View {
     
     private var activeDownloadView: some View {
         VStack(spacing: 20) {
-            Image(systemName: viewModel.state == .downloading ? "arrow.down.circle.fill" : "checkmark.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(viewModel.state == .downloading ? DesignSystem.Colors.nothingRed : .green)
-                .symbolEffect(.bounce, value: viewModel.progress)
+            if #available(iOS 17.0, *) {
+                Image(systemName: viewModel.state == .downloading ? "arrow.down.circle.fill" : "checkmark.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(viewModel.state == .downloading ? DesignSystem.Colors.nothingRed : .green)
+                    .symbolEffect(.bounce, value: viewModel.progress)
+            } else if #available(iOS 15.0, *) {
+                Image(systemName: viewModel.state == .downloading ? "arrow.down.circle.fill" : "checkmark.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(viewModel.state == .downloading ? DesignSystem.Colors.nothingRed : .green)
+            } else {
+                Image(systemName: viewModel.state == .downloading ? "arrow.down.circle.fill" : "checkmark.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(viewModel.state == .downloading ? DesignSystem.Colors.nothingRed : .green)
+            }
             
             VStack(spacing: 6) {
                 Text(viewModel.videoTitle)
@@ -418,21 +439,21 @@ struct ShareView: View {
                         VStack(spacing: 8) {
                             // Main Server Progress
                             ProgressView(value: viewModel.progress)
-                                .tint(DesignSystem.Colors.nothingRed)
+                                .if(availableiOS: 15.0, then: { $0.tint(DesignSystem.Colors.nothingRed) }, else: { $0.accentColor(DesignSystem.Colors.nothingRed) })
                                 .scaleEffect(x: 1, y: 1.5, anchor: .center)
                             
                             // File Transfer Progress (Secondary Bar)
                             if let fileProgress = viewModel.fileDownloadProgress {
                                 VStack(spacing: 4) {
                                     ProgressView(value: fileProgress)
-                                        .tint(DesignSystem.Colors.nothingRed)
+                                        .if(availableiOS: 15.0, then: { $0.tint(DesignSystem.Colors.nothingRed) }, else: { $0.accentColor(DesignSystem.Colors.nothingRed) })
                                         .scaleEffect(x: 1, y: 1.5, anchor: .center)
                                         .transition(.move(edge: .bottom).combined(with: .opacity))
                                     
                                     HStack {
                                         Text("\(Int(fileProgress * 100))%")
                                             .font(.nothingMeta)
-                                            .foregroundStyle(.secondary)
+                                            .if(availableiOS: 15.0, then: { $0.foregroundStyle(.secondary) }, else: { $0.foregroundColor(.secondary) })
                                         Spacer()
                                         // Status is shown below in the main HStack
                                     }
@@ -445,12 +466,12 @@ struct ShareView: View {
                                 if viewModel.fileDownloadProgress == nil {
                                     Text("\(Int(viewModel.progress * 100))%")
                                         .font(.nothingMeta)
-                                        .foregroundStyle(.secondary)
+                                        .if(availableiOS: 15.0, then: { $0.foregroundStyle(.secondary) }, else: { $0.foregroundColor(.secondary) })
                                 }
                                 Spacer()
                                 Text(viewModel.statusMessage)
                                     .font(.nothingMeta)
-                                    .foregroundStyle(.secondary)
+                                    .if(availableiOS: 15.0, then: { $0.foregroundStyle(.secondary) }, else: { $0.foregroundColor(.secondary) })
                             }
                         }
                         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: viewModel.fileDownloadProgress)
@@ -458,7 +479,7 @@ struct ShareView: View {
                         Button(action: { withAnimation { viewModel.showProgressOverride = true } }) {
                             Text("TAP TO REVEAL PROGRESS")
                                 .font(.nothingMeta)
-                                .foregroundStyle(.secondary)
+                                .if(availableiOS: 15.0, then: { $0.foregroundStyle(.secondary) }, else: { $0.foregroundColor(.secondary) })
                                 .padding(.vertical, 8)
                                 .frame(maxWidth: .infinity)
                                 .background(Color.primary.opacity(0.05))
@@ -506,10 +527,17 @@ struct ShareView: View {
     
     private func miniPicker(title: String, items: [String], selection: Binding<String>) -> some View {
         HStack {
-            Text(title)
-                .font(.nothingMeta)
-                .foregroundStyle(.secondary)
-                .frame(width: 70, alignment: .leading)
+            if #available(iOS 15.0, *) {
+                Text(title)
+                    .font(.nothingMeta)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 70, alignment: .leading)
+            } else {
+                Text(title)
+                    .font(.nothingMeta)
+                    .foregroundColor(.secondary)
+                    .frame(width: 70, alignment: .leading)
+            }
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -526,6 +554,44 @@ struct ShareView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+// Custom View Modifier for conditional modifiers
+extension View {
+    @ViewBuilder
+    func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
+    }
+    
+    @ViewBuilder
+    func `if`<TrueContent: View, FalseContent: View>(
+        _ condition: Bool,
+        then trueTransform: (Self) -> TrueContent,
+        else falseTransform: (Self) -> FalseContent
+    ) -> some View {
+        if condition {
+            trueTransform(self)
+        } else {
+            falseTransform(self)
+        }
+    }
+
+    @ViewBuilder
+    func `if`<TrueContent: View, FalseContent: View>(
+        availableiOS version: Double,
+        then trueTransform: (Self) -> TrueContent,
+        else falseTransform: (Self) -> FalseContent
+    ) -> some View {
+        if #available(iOS 15.0, *) {
+             trueTransform(self)
+        } else {
+             falseTransform(self)
         }
     }
 }
