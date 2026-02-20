@@ -5,8 +5,14 @@ class DatabaseManager {
     static let shared = DatabaseManager()
     private var db: OpaquePointer?
     
-    // TODO: Use App Group container in production
-    let appGroupIdentifier = "group.com.nisesimadao.Fetchy"
+    // Load App Group identifier from Info.plist for flexibility across build variants (e.g. AltStore, future renaming)
+    var appGroupIdentifier: String {
+        if let id = Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String {
+            return id
+        }
+        // Fallback for legacy or dev/test use
+        return "group.com.nisesimadao.Fetchy"
+    }
     
     private var dbPath: String {
         let fileManager = FileManager.default

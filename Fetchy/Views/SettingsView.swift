@@ -5,6 +5,18 @@ struct SettingsView: View {
     @State private var proTapCount = 0
     @State private var playingSplash = false
     
+    private var appDisplayName: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+        ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+        ?? "App"
+    }
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+    }
+    private var appBuild: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+    }
+    
     var body: some View {
         ZStack {
             NavigationView {
@@ -79,7 +91,7 @@ struct SettingsView: View {
                         HStack {
                             Spacer()
                             VStack(spacing: 4) {
-                                Text("Fetchy Pro")
+                                Text(appDisplayName)
                                     .font(.nothingMeta)
                                     .foregroundStyle(.primary)
                                     .onTapGesture {
@@ -89,7 +101,7 @@ struct SettingsView: View {
                                             playingSplash = true
                                         }
                                     }
-                                Text("Version 1.6.0 (Build 12)")
+                                Text("Version \(appVersion) (Build \(appBuild))")
                                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                                     .foregroundStyle(.secondary)
                             }

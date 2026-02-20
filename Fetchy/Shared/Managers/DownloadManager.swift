@@ -59,7 +59,7 @@ class DownloadTask: ObservableObject, Identifiable {
         
         // Setup session directory
         // Path: AppGroup/temp/session_<UUID>/output.mp4
-        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.nisesimadao.Fetchy") else {
+        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppGroup.identifier) else {
             self.status = "ERROR: APP GROUP UNREACHABLE"
             return
         }
@@ -154,8 +154,10 @@ class DownloadTask: ObservableObject, Identifiable {
 }
 
 class DownloadManager: ObservableObject {
-// ... (rest of DownloadManager unchanged, just closing DownloadTask properly)
     static let shared = DownloadManager()
+
+    private let fileManager = FileManager.default
+    private let databaseManager = DatabaseManager.shared
     @Published var tasks: [DownloadTask] = []
     
     init() {
@@ -166,7 +168,7 @@ class DownloadManager: ObservableObject {
     
     /// Startup GC: Delete all session directories in temp
     private func cleanupOldSessions() {
-        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.nisesimadao.Fetchy") else { return }
+        guard let containerURL = fileManager.containerURL(forSecurityApplicationGroupIdentifier: AppGroup.identifier) else { return }
         let tempDir = containerURL.appendingPathComponent("temp")
         
         do {

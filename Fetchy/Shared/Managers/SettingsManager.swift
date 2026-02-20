@@ -1,10 +1,11 @@
+import Foundation
 import SwiftUI
 import Combine
 
 class SettingsManager: ObservableObject {
     static let shared = SettingsManager()
     
-    private let appGroupIdentifier = "group.com.nisesimadao.Fetchy"
+    private var appGroupIdentifier: String { AppGroup.identifier }
     private var store: UserDefaults? {
         UserDefaults(suiteName: appGroupIdentifier)
     }

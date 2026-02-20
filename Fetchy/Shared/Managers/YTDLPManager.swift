@@ -21,6 +21,14 @@ class YTDLPManager {
     private var pollingTask: Task<Void, Error>?
     private let apiClient = APIClient()
     
+    // Info.plistからApp Group IDを取得。なければ従来値にフォールバック
+    private var appGroupIdentifier: String {
+        if let id = Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String {
+            return id
+        }
+        return "group.com.nisesimadao.Fetchy"
+    }
+    
     public init() {}
     
     /// Download video via Railway API
@@ -82,7 +90,6 @@ class YTDLPManager {
                         destinationURL = URL(fileURLWithPath: template)
                     } else {
                         // Fallback logic (legacy)
-                        let appGroupIdentifier = "group.com.nisesimadao.Fetchy"
                         guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else {
                             completion(.failure(YTDLPError.apiError("Could not access App Group")), nil)
                             return
